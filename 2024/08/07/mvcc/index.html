@@ -29,7 +29,7 @@
 <meta property="og:description" content="1、背景看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。 2、源码分析安装的pg版本为11，每个元组的头部信息在HeapTupleHeaderData中定义： 1234567891011121314struct HeapTupleHeaderData&#123;	union	&#123;		HeapTupleFi">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-08-07T03:58:29.000Z">
-<meta property="article:modified_time" content="2024-08-07T04:26:07.579Z">
+<meta property="article:modified_time" content="2024-08-07T04:34:15.543Z">
 <meta property="article:author" content="吴楚">
 <meta property="article:tag" content="PostgreSQL">
 <meta name="twitter:card" content="summary_large_image">
@@ -317,7 +317,7 @@
               <p id="updated-time" class="note note-success" style="display: none">
                 
                   
-                    本文最后更新于 2024-08-07T12:26:07+08:00
+                    本文最后更新于 2024-08-07T12:34:15+08:00
                   
                   
 
@@ -369,12 +369,22 @@
 <h3 id="3、隐藏字段详细分析"><a href="#3、隐藏字段详细分析" class="headerlink" title="3、隐藏字段详细分析"></a>3、隐藏字段详细分析</h3><h5 id="t-ctid"><a href="#t-ctid" class="headerlink" title="t_ctid"></a>t_ctid</h5> 
 <p>对应实际字段中的ctid，表示数据记录的物理行当信息，指的是一条记录位于哪个数据块的哪个位移上面。<br>格式<code>(blockid,itemid)</code>：拿上图其中的(0,1)来说；0表示块id；1表示在这块第一条记录。</p>
 <ul>
-<li><strong>当执行insert操作时，ctid的变化如下：</strong>
-看出来是顺序累加。</li>
-<li><strong>当执行更新操作时，ctid的变化：</strong>
+<li><p><strong>当执行insert操作时，ctid的变化如下：</strong></p>
 
 
-更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</li>
+
+
+<p>看出来是顺序累加。</p>
+</li>
+<li><p><strong>当执行更新操作时，ctid的变化：</strong></p>
+
+
+
+
+
+
+<p>更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</p>
+</li>
 </ul>
 <blockquote>
 <p><strong>发现并不会在（0，2）位置上插入新数据？</strong><br><strong>分析：</strong>新插入的数据通常不会立即填充刚刚清理的空间，而是优先使用表末尾的空闲空间，这涉及到数据库的存储管理和性能优化策略。减少碎片化：优先使用表末尾的空闲空间可以减少数据文件的碎片化，提高查询性能。提高插入性能：插入新数据到表末尾的空闲空间比在表中间找到一个合适的空闲位置更高效。</p>
