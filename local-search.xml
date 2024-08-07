@@ -4,6 +4,31 @@
   
   
   <entry>
+    <title>mvcc-1</title>
+    <link href="/2024/08/07/mvcc-1/"/>
+    <url>/2024/08/07/mvcc-1/</url>
+    
+    <content type="html"><![CDATA[]]></content>
+    
+    
+    <categories>
+      
+      <category>教程</category>
+      
+    </categories>
+    
+    
+    <tags>
+      
+      <tag>原创</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>Postgresql中元组的隐藏字段与MVCC</title>
     <link href="/2024/08/07/mvcc/"/>
     <url>/2024/08/07/mvcc/</url>
