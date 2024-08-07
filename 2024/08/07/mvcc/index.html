@@ -29,7 +29,7 @@
 <meta property="og:description" content="1、背景看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。 2、源码分析安装的pg版本为11，每个元组的头部信息在HeapTupleHeaderData中定义： 1234567891011121314struct HeapTupleHeaderData&#123;	union	&#123;		HeapTupleFi">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-08-07T03:58:29.000Z">
-<meta property="article:modified_time" content="2024-08-07T03:59:06.607Z">
+<meta property="article:modified_time" content="2024-08-07T04:26:07.579Z">
 <meta property="article:author" content="吴楚">
 <meta property="article:tag" content="PostgreSQL">
 <meta name="twitter:card" content="summary_large_image">
@@ -317,7 +317,7 @@
               <p id="updated-time" class="note note-success" style="display: none">
                 
                   
-                    本文最后更新于 2024-08-07T11:59:06+08:00
+                    本文最后更新于 2024-08-07T12:26:07+08:00
                   
                   
 
@@ -339,6 +339,7 @@
 <figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs pgsql"><span class="hljs-keyword">SELECT</span> attname, attnum, attisdropped, attlen, attalign, attnotnull<br><span class="hljs-keyword">FROM</span> pg_catalog.pg_attribute <span class="hljs-keyword">WHERE</span> attrelid = <span class="hljs-string">&#x27;test&#x27;</span>::<span class="hljs-type">regclass</span><br><span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> attnum;<br></code></pre></td></tr></table></figure>
 
 <p>发现实际表的隐藏字段如下所示：</p>
+
 
 <p>所以说源码中的字段跟实际隐藏字段的name有区别，对应关系：</p>
 <table>
