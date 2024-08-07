@@ -21,17 +21,17 @@
   <meta name="author" content="吴楚">
   <meta name="keywords" content="postgres,blog">
   
-    <meta name="description" content="###1、背景看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。###2、源码分析安装的pg版本为11，每个元组的头部信息在HeapTupleHeaderData中定义： 1234567891011121314struct HeapTupleHeaderData&#123;	union	&#123;		HeapTu">
+    <meta name="description" content="1、背景看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。 2、源码分析安装的pg版本为11，每个元组的头部信息在HeapTupleHeaderData中定义： 1234567891011121314struct HeapTupleHeaderData&#123;	union	&#123;		HeapTupleFi">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Postgresql中元组的隐藏字段与MVCC">
 <meta property="og:url" content="http://wuchuboy.github.io/2024/08/07/mvcc/index.html">
 <meta property="og:site_name" content="楚哥博客">
-<meta property="og:description" content="###1、背景看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。###2、源码分析安装的pg版本为11，每个元组的头部信息在HeapTupleHeaderData中定义： 1234567891011121314struct HeapTupleHeaderData&#123;	union	&#123;		HeapTu">
+<meta property="og:description" content="1、背景看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。 2、源码分析安装的pg版本为11，每个元组的头部信息在HeapTupleHeaderData中定义： 1234567891011121314struct HeapTupleHeaderData&#123;	union	&#123;		HeapTupleFi">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-08-07T03:08:04.626Z">
-<meta property="article:modified_time" content="2024-08-07T03:20:54.345Z">
+<meta property="article:modified_time" content="2024-08-07T03:55:53.349Z">
 <meta property="article:author" content="吴楚">
-<meta property="article:tag" content="原创">
+<meta property="article:tag" content="PostgreSQL">
 <meta name="twitter:card" content="summary_large_image">
   
   
@@ -317,7 +317,7 @@
               <p id="updated-time" class="note note-success" style="display: none">
                 
                   
-                    本文最后更新于 2024-08-07T11:20:54+08:00
+                    本文最后更新于 2024-08-07T11:55:53+08:00
                   
                   
 
@@ -327,62 +327,100 @@
             
               <div class="markdown-body">
                 
-                <p>###1、背景<br>看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。<br>###2、源码分析<br>安装的pg版本为<code>11</code>，每个元组的头部信息在<code>HeapTupleHeaderData</code>中定义：</p>
+                <h3 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h3><p>看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。</p>
+<h3 id="2、源码分析"><a href="#2、源码分析" class="headerlink" title="2、源码分析"></a>2、源码分析</h3><p>安装的pg版本为<code>11</code>，每个元组的头部信息在<code>HeapTupleHeaderData</code>中定义：</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs go"><span class="hljs-keyword">struct</span> HeapTupleHeaderData<br>&#123;<br>	union<br>	&#123;<br>		HeapTupleFields t_heap; <span class="hljs-comment">//存放元组描述信息</span><br>		DatumTupleFields t_datum;<br>	&#125;			t_choice;<br><br>	ItemPointerData t_ctid;		<span class="hljs-comment">/*元组的存放位置，一般值为“（blockid,itemid）”  */</span><br>	<span class="hljs-type">uint16</span>		t_infomask2;	<span class="hljs-comment">/* 属性和标识位 */</span><br>	<span class="hljs-type">uint16</span>		t_infomask;		<span class="hljs-comment">/* 其他标识位 */</span><br>	<span class="hljs-type">uint8</span>		t_hoff;			<span class="hljs-comment">/* 首部+位图+填充的长度 */</span><br>	bits8		t_bits[<span class="hljs-number">1</span>];	<span class="hljs-comment">/* bitmap of NULLs */</span><br>&#125;;<br></code></pre></td></tr></table></figure>
+
 <p>HeapTupleHeaderData中的<code>t_heap</code>存储着元组的一些描述信息，结构如下：</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">typedef</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">HeapTupleFields</span><br>&#123;<br>TransactionId t_xmin;   <span class="hljs-comment">/* 插入或修改事务的ID */</span><br>TransactionId t_xmax;   <span class="hljs-comment">/* 删除或者锁定事务的ID */</span><br><br><span class="hljs-keyword">union</span><br>&#123;<br>   CommandId t_cid;   <span class="hljs-comment">/* 插入或者删除的命令ID */</span><br>   TransactionId t_xvac; <span class="hljs-comment">/* 执行vacuum full的事务ID */</span><br>&#125;    t_field3;<br>&#125; HeapTupleFields;<br></code></pre></td></tr></table></figure>
 
-<p>经过分析源码，发现核心的隐藏字段有：!!#ff0000 <strong>t_ctid、t_xmin、t_xmax、t_cid</strong>!!</p>
+<p>经过分析源码，发现核心的隐藏字段有：<strong>t_ctid、t_xmin、t_xmax、t_cid</strong></p>
 <p>执行命令：</p>
 <figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs pgsql"><span class="hljs-keyword">SELECT</span> attname, attnum, attisdropped, attlen, attalign, attnotnull<br><span class="hljs-keyword">FROM</span> pg_catalog.pg_attribute <span class="hljs-keyword">WHERE</span> attrelid = <span class="hljs-string">&#x27;test&#x27;</span>::<span class="hljs-type">regclass</span><br><span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> attnum;<br></code></pre></td></tr></table></figure>
+
 <p>发现实际表的隐藏字段如下所示：</p>
 
 <p>所以说源码中的字段跟实际隐藏字段的name有区别，对应关系：</p>
-<p>| 源码字段 | 实际隐藏字段 |<br>|—— |<br>| t_ctid | ctid |<br>| t_xmin | xmin |<br>| t_xmax | xmax |<br>| t_cid | cmax、cmin |</p>
-<p>###3、隐藏字段详细分析<br>#####t_ctid</p>
-
+<table>
+<thead>
+<tr>
+<th>源码字段</th>
+<th>实际隐藏字段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>t_ctid</td>
+<td>ctid</td>
+</tr>
+<tr>
+<td>t_xmin</td>
+<td>xmin</td>
+</tr>
+<tr>
+<td>t_xmax</td>
+<td>xmax</td>
+</tr>
+<tr>
+<td>t_cid</td>
+<td>cmax、cmin</td>
+</tr>
+</tbody></table>
+<h3 id="3、隐藏字段详细分析"><a href="#3、隐藏字段详细分析" class="headerlink" title="3、隐藏字段详细分析"></a>3、隐藏字段详细分析</h3><h5 id="t-ctid"><a href="#t-ctid" class="headerlink" title="t_ctid"></a>t_ctid</h5> 
 <p>对应实际字段中的ctid，表示数据记录的物理行当信息，指的是一条记录位于哪个数据块的哪个位移上面。<br>格式<code>(blockid,itemid)</code>：拿上图其中的(0,1)来说；0表示块id；1表示在这块第一条记录。</p>
 <ul>
-<li><p><strong>当执行insert操作时，ctid的变化如下：</strong></p>
-
-<p>看出来是顺序累加。</p>
-</li>
-<li><p><strong>当执行更新操作时，ctid的变化：</strong></p>
+<li><strong>当执行insert操作时，ctid的变化如下：</strong>
+看出来是顺序累加。</li>
+<li><strong>当执行更新操作时，ctid的变化：</strong>
 
 
-
-<p>更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</p>
-
+更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</li>
+</ul>
 <blockquote>
 <p><strong>发现并不会在（0，2）位置上插入新数据？</strong><br><strong>分析：</strong>新插入的数据通常不会立即填充刚刚清理的空间，而是优先使用表末尾的空闲空间，这涉及到数据库的存储管理和性能优化策略。减少碎片化：优先使用表末尾的空闲空间可以减少数据文件的碎片化，提高查询性能。提高插入性能：插入新数据到表末尾的空闲空间比在表中间找到一个合适的空闲位置更高效。</p>
 </blockquote>
-</li>
-</ul>
-<p>#####t_xmin<br>存储的是产生这个元组的事务ID，可能是insert或者update语句</p>
+<h5 id="t-xmin"><a href="#t-xmin" class="headerlink" title="t_xmin"></a>t_xmin</h5><p>存储的是产生这个元组的事务ID，可能是insert或者update语句</p>
 
-<p>#####t_xmax<br>存储的是删除或者锁定这个元组的事务ID<br>#####t_cid<br>包含cmin和cmax两个字段，分别存储创建这个元组的Command ID和删除这个元组的Command ID。在事务执行期间，会给改期间执行的所以命令设置一个唯一ID，也就是Command ID。</p>
-<p>###4、MVCC的可见性判断</p>
-<p>MVCC 可见性判断主要就是将元组的 xmin、xmax、cmin、cmax 以及 t_infomask 信息结合快照 snapshot 以及 CLOG 中的信息，根据可见性判断规则，决定一个元组是否可见。<br>可见性判断主要分为两个部分：</p>
+
+<h5 id="t-xmax"><a href="#t-xmax" class="headerlink" title="t_xmax"></a>t_xmax</h5><p>存储的是删除或者锁定这个元组的事务ID</p>
+<h5 id="t-cid"><a href="#t-cid" class="headerlink" title="t_cid"></a>t_cid</h5><p>包含cmin和cmax两个字段，分别存储创建这个元组的Command ID和删除这个元组的Command ID。在事务执行期间，会给改期间执行的所以命令设置一个唯一ID，也就是Command ID。</p>
+<h3 id="4、MVCC的可见性判断"><a href="#4、MVCC的可见性判断" class="headerlink" title="4、MVCC的可见性判断"></a>4、MVCC的可见性判断</h3><p>MVCC 可见性判断主要就是将元组的 xmin、xmax、cmin、cmax 以及 t_infomask 信息结合快照 snapshot 以及 CLOG 中的信息，根据可见性判断规则，决定一个元组是否可见。<br>可见性判断主要分为两个部分：</p>
 <ul>
 <li>对元组的 xmin 进行可见性判断，即 insert 该元组的事务是否已提交，是否可见。</li>
 <li>对元组的 xmax 进行可见性判断，即该元组是否已被 update 或者 delete。</li>
 </ul>
 <p>为了简化逻辑，去除了一些兼容相关的干扰以及很少走到的一些代码路径。以下是关于元组 xmin 的判断规则：</p>
-<ol>
-<li>如果元组 xmin 未提交，判断条件为：!(t_infomask &amp; HEAP_XMIN_COMMITTED)<br> 1.1 如果元组的 xmin 无效，即 HeapTupleHeaderXminInvalid(tuple)，返回不可见<br> 1.2 如果元组的 xmin 在当前事务（包含子事务）中<br> 1.2.1 如果元组的 cmin 大于等于 快照的 commandId，返回不可见<br> 1.2.2 如果元组的 t_infomask 包含 HEAP_XMAX_INVALID 标记，即 xmax 无效，返回可见<br> 1.2.3 如果元组的 t_infomask 仅包含 HEAP_XMAX_EXCL_LOCK，返回可见<br> 1.2.4 如果元组的 xmax 不在当前事务中，设置标记 HEAP_XMAX_INVALID，返回可见<br> 1.2.5 如果元组的 cmax 大于等于快照的 commandId，返回可见，否则返回不可见<br> 1.3 如果元组的 xmin 在快照的活跃事务列表中，返回不可见<br> 1.4 如果元组的 xmin 在 clog 中已提交，设置标记 HEAP_XMIN_COMMITTED<br> 1.5 设置标记 HEAP_XMIN_INVALID，返回不可见</li>
-<li>如果元组的 xmin 已提交<br> 2.1 如果元组的 xmin 未冻结并且 xmin 在快照活跃事务列表中，返回不可见</li>
-</ol>
+<p>1.如果元组 xmin 未提交，判断条件为：!(t_infomask &amp; HEAP_XMIN_COMMITTED)</p>
+<p>1.1 如果元组的 xmin 无效，即 HeapTupleHeaderXminInvalid(tuple)，返回不可见</p>
+<p>1.2 如果元组的 xmin 在当前事务（包含子事务）中</p>
+<ul>
+<li>1.2.1 如果元组的 cmin 大于等于 快照的 commandId，返回不可见</li>
+<li>1.2.2 如果元组的 t_infomask 包含 HEAP_XMAX_INVALID 标记，即 xmax 无效，返回可见</li>
+<li>1.2.3 如果元组的 t_infomask 仅包含 HEAP_XMAX_EXCL_LOCK，返回可见</li>
+<li>1.2.4 如果元组的 xmax 不在当前事务中，设置标记 HEAP_XMAX_INVALID，返回可见</li>
+<li>1.2.5 如果元组的 cmax 大于等于快照的 commandId，返回可见，否则返回不可见</li>
+</ul>
+<p>1.3 如果元组的 xmin 在快照的活跃事务列表中，返回不可见</p>
+<p>1.4 如果元组的 xmin 在 clog 中已提交，设置标记 HEAP_XMIN_COMMITTED</p>
+<p>1.5 设置标记 HEAP_XMIN_INVALID，返回不可见</p>
+<p>2.如果元组的 xmin 已提交</p>
+<p>2.1 如果元组的 xmin 未冻结并且 xmin 在快照活跃事务列表中，返回不可见</p>
 <p><strong>到此说明元组的 xmin 已提交，即 insert 已提交，是否可见还得看 xmax，下面是关于 xmax 的判断规则</strong></p>
-<ol start="3">
-<li>t_infomask 标记包含 HEAP_XMAX_INVALID，返回可见</li>
-<li>t_infomask 标记满足 HEAP_XMAX_IS_LOCKED_ONLY，返回可见</li>
-<li>如果 t_infomask 不包含 HEAP_XMAX_COMMITTED<br> 5.1 如果 xmax 在当前事务中<br> 5.1.1 cmax 大于等于快照的cid，返回可见<br> 5.1.2 cmax 小于快照的 cid，返回不可见<br> 5.2 如果 xmax 在快照的活跃事务列表中，返回可见<br> 5.3 如果 xmax 在 clog 中没有提交，设置标记 HEAP_XMAX_INVALID，返回可见<br> 5.4 设置标记 HEAP_XMAX_COMMITTED</li>
-<li>t_infomask 包含 HEAP_XMAX_COMMITTED<br> 6.1 如果 xmax 在快照的活跃事务列表中，返回可见</li>
-</ol>
+<p>3.t_infomask 标记包含 HEAP_XMAX_INVALID，返回可见</p>
+<p>4.t_infomask 标记满足 HEAP_XMAX_IS_LOCKED_ONLY，返回可见</p>
+<p>5.如果 t_infomask 不包含 HEAP_XMAX_COMMITTED</p>
+<p>5.1 如果 xmax 在当前事务中</p>
+<ul>
+<li>5.1.1 cmax 大于等于快照的cid，返回可见</li>
+<li>5.1.2 cmax 小于快照的 cid，返回不可见</li>
+</ul>
+<p>5.2 如果 xmax 在快照的活跃事务列表中，返回可见</p>
+<p>5.3 如果 xmax 在 clog 中没有提交，设置标记 HEAP_XMAX_INVALID，返回可见</p>
+<p>5.4 设置标记 HEAP_XMAX_COMMITTED</p>
+<p>6.t_infomask 包含 HEAP_XMAX_COMMITTED</p>
+<p>6.1 如果 xmax 在快照的活跃事务列表中，返回可见</p>
 <p>除了以上描述的情况外，其他的都返回不可见</p>
-<ol start="7">
-<li>其他都是返回不可见<br>以上分析可以看出 MVCC 可见性判断的规则还是比较复杂的，考虑了很多场景，规则之间还有先后顺序依赖。总结可见性规则影响因素如下：</li>
-</ol>
+<p>7.其他都是返回不可见</p>
+<p>以上分析可以看出 MVCC 可见性判断的规则还是比较复杂的，考虑了很多场景，规则之间还有先后顺序依赖。总结可见性规则影响因素如下：</p>
 <ul>
 <li>xmin 是否已提交，是否有效</li>
 <li>xmin 是否在当前会话的事务中</li>
@@ -418,7 +456,7 @@
     
       <span class="category-chain">
         
-  <a href="/categories/Postgresql-MVCC/" class="category-chain-item">Postgresql,MVCC</a>
+  <a href="/categories/MVCC/" class="category-chain-item">MVCC</a>
   
   
 
@@ -433,7 +471,7 @@
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
-        <a href="/tags/%E5%8E%9F%E5%88%9B/" class="print-no-link">#原创</a>
+        <a href="/tags/PostgreSQL/" class="print-no-link">#PostgreSQL</a>
       
     </div>
   
