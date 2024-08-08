@@ -30,6 +30,7 @@ function getbrowserInfo() {
 
 
 function IPCallBack(data) {
+    console.log(data)
     var ip_content = document.querySelector(".ip_content");
     ip_content.innerHTML = '欢迎来自 <span class="p" style=" color:red ">' + data["addr"] + "</span> 的小伙伴<br>" + '访问IP为： <span class="p" style=" color:blue " >' + data["ip"] + '</span><br>浏览器版本：<span class="p" style=" color:green ">' + getbrowserInfo() + '</span>';
 }
