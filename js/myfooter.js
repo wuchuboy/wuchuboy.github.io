@@ -1,5 +1,5 @@
 // 动态心跳
-import $ from 'jquery';
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 $(document).ready(function(e) {
     $('.copyright').html('©2024 <i class="fa-fw fas fa-heartbeat card-announcement-animation cc_pointer"></i> By 吴楚');
