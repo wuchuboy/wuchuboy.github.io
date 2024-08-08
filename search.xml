@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>写文章教程</title>
+    <url>/2024/08/06/test/</url>
+    <content><![CDATA[<p>这是一篇测试文章</p>
+<p>新建文章</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hexo new post 测试文章</span><br></pre></td></tr></table></figure>
+
+<p>提交到github</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hexo g -d</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/08/06/test/baby.jpg" class="" title="图片引用方法一">
+]]></content>
+      <categories>
+        <category>教程</category>
+      </categories>
+      <tags>
+        <tag>原创</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Postgresql中元组的隐藏字段与MVCC</title>
     <url>/2024/08/07/mvcc/</url>
     <content><![CDATA[<h3 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h3><p>看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。</p>
@@ -187,25 +206,6 @@
       </categories>
       <tags>
         <tag>数据库基础</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>写文章教程</title>
-    <url>/2024/08/06/test/</url>
-    <content><![CDATA[<p>这是一篇测试文章</p>
-<p>新建文章</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hexo new post 测试文章</span><br></pre></td></tr></table></figure>
-
-<p>提交到github</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hexo g -d</span><br></pre></td></tr></table></figure>
-
-<img src="/2024/08/06/test/baby.jpg" class="" title="图片引用方法一">
-]]></content>
-      <categories>
-        <category>教程</category>
-      </categories>
-      <tags>
-        <tag>原创</tag>
       </tags>
   </entry>
 </search>
