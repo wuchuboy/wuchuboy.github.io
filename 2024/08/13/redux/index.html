@@ -1,0 +1,272 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Redux的基本原理 | 楚哥博客</title><meta name="author" content="吴楚"><meta name="copyright" content="吴楚"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="求和案例_redux精简版1234567891011121314151617181920(1).去除Count组件自身的状态(2).src下建立:    -redux        -store.js        -count_reducer.js(3).store.js：    1).引入redux中的createStore函数，创建一个store    2).createStore调用">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Redux的基本原理">
+<meta property="og:url" content="https://wuchu.site/2024/08/13/redux/index.html">
+<meta property="og:site_name" content="楚哥博客">
+<meta property="og:description" content="求和案例_redux精简版1234567891011121314151617181920(1).去除Count组件自身的状态(2).src下建立:    -redux        -store.js        -count_reducer.js(3).store.js：    1).引入redux中的createStore函数，创建一个store    2).createStore调用">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://wuchu.site/img/island.jpg">
+<meta property="article:published_time" content="2024-08-13T12:43:52.000Z">
+<meta property="article:modified_time" content="2024-08-13T13:00:24.748Z">
+<meta property="article:author" content="吴楚">
+<meta property="article:tag" content="Redux">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://wuchu.site/img/island.jpg"><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://wuchu.site/2024/08/13/redux/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><meta name="google-site-verification" content="NfYLulfvMY31W5MaFSRhJgRbvI43eInX4zeKunBQaGc"/><meta name="baidu-site-verification" content="codeva-3PuKmDUPuu"/><link rel="stylesheet" href="/css/index.css?v=4.13.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/node-snackbar@0.1.16/dist/snackbar.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://npm.elemecdn.com/lxgw-wenkai-screen-webfont/style.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"languages":{"hits_empty":"找不到您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: {"defaultEncoding":2,"translateDelay":0,"msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  noticeOutdate: {"limitDay":100,"position":"top","messagePrev":"本文已经","messageNext":"天没更新了，文章内容可能已过时哦！"},
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":50,"languages":{"author":"作者: 吴楚","link":"链接: ","source":"来源: 楚哥博客","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: {"chs_to_cht":"你已切换为繁体中文","cht_to_chs":"你已切换为简体中文","day_to_night":"你已切换为深色模式","night_to_day":"你已切换为浅色模式","bgLight":"#49b1f5","bgDark":"#1f1f1f","position":"bottom-left"},
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Redux的基本原理',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2024-08-13 21:00:24'
+}</script><script>(win=>{
+      win.saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+    
+      win.getScript = (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        script.onerror = reject
+        script.onload = script.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          script.onload = script.onreadystatechange = null
+          resolve()
+        }
+
+        Object.keys(attr).forEach(key => {
+          script.setAttribute(key, attr[key])
+        })
+
+        document.head.appendChild(script)
+      })
+    
+      win.getCSS = (url, id = false) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onerror = reject
+        link.onload = link.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          link.onload = link.onreadystatechange = null
+          resolve()
+        }
+        document.head.appendChild(link)
+      })
+    
+      win.activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })(window)</script><link rel="stylesheet" href="/css/cursor.css"><script src="https://code.jquery.com/jquery-3.6.0.min.js"></script><script src="/js/title.js"></script><link rel="stylesheet" href="https://gcore.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/macblack.css"><link rel="stylesheet" href="/css/notice.css"><link rel="stylesheet" href="/css/weibo.css"><link rel="stylesheet" href="/css/rightMenu.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div id="loading-box"><div class="loading-left-bg"></div><div class="loading-right-bg"></div><div class="spinner-box"><div class="configure-border-1"><div class="configure-core"></div></div><div class="configure-border-2"><div class="configure-core"></div></div><div class="loading-word">加载中...</div></div></div><script>(()=>{
+  const $loadingBox = document.getElementById('loading-box')
+  const $body = document.body
+  const preloader = {
+    endLoading: () => {
+      $body.style.overflow = ''
+      $loadingBox.classList.add('loaded')
+    },
+    initLoading: () => {
+      $body.style.overflow = 'hidden'
+      $loadingBox.classList.remove('loaded')
+    }
+  }
+
+  preloader.initLoading()
+  window.addEventListener('load',() => { preloader.endLoading() })
+
+  if (false) {
+    document.addEventListener('pjax:send', () => { preloader.initLoading() })
+    document.addEventListener('pjax:complete', () => { preloader.endLoading() })
+  }
+})()</script><div id="web_bg"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/avatar.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">6</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><hr class="custom-hr"/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page group" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i><span> 娱乐</span><i class="fas fa-chevron-down"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/music/"><i class="fa-fw fas fa-music"></i><span> 音乐</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('/img/island.jpg')"><nav id="nav"><span id="blog-info"><a href="/" title="楚哥博客"><span class="site-name">楚哥博客</span></a></span><div id="menus"><div id="search-button"><a class="site-page social-icon search" href="javascript:void(0);"><i class="fas fa-search fa-fw"></i><span> 搜索</span></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page group" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i><span> 娱乐</span><i class="fas fa-chevron-down"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/music/"><i class="fa-fw fas fa-music"></i><span> 音乐</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page" href="javascript:void(0);"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">Redux的基本原理</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2024-08-13T12:43:52.000Z" title="发表于 2024-08-13 20:43:52">2024-08-13</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2024-08-13T13:00:24.748Z" title="更新于 2024-08-13 21:00:24">2024-08-13</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%95%99%E7%A8%8B/">教程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">字数总计:</span><span class="word-count">945</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>3分钟</span></span><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="Redux的基本原理"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><img src="/2024/08/13/redux/redux.gif" class="" title="图片引用方法一">
+
+
+<h3 id="求和案例-redux精简版"><a href="#求和案例-redux精简版" class="headerlink" title="求和案例_redux精简版"></a>求和案例_redux精简版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).去除<span class="title class_">Count</span>组件自身的状态</span><br><span class="line">(<span class="number">2</span>).<span class="property">src</span>下建立:</span><br><span class="line">    -redux</span><br><span class="line">        -store.<span class="property">js</span></span><br><span class="line">        -count_reducer.<span class="property">js</span></span><br><span class="line"></span><br><span class="line">(<span class="number">3</span>).<span class="property">store</span>.<span class="property">js</span>：</span><br><span class="line">    <span class="number">1</span>).引入redux中的createStore函数，创建一个store</span><br><span class="line">    <span class="number">2</span>).<span class="property">createStore</span>调用时要传入一个为其服务的reducer</span><br><span class="line">    <span class="number">3</span>).记得暴露store对象</span><br><span class="line"></span><br><span class="line">(<span class="number">4</span>).<span class="property">count_reducer</span>.<span class="property">js</span>：</span><br><span class="line">    <span class="number">1</span>).<span class="property">reducer</span>的本质是一个函数，接收：preState,action，返回加工后的状态</span><br><span class="line">    <span class="number">2</span>).<span class="property">reducer</span>有两个作用：初始化状态，加工状态</span><br><span class="line">    <span class="number">3</span>).<span class="property">reducer</span>被第一次调用时，是store自动触发的，</span><br><span class="line">                    传递的preState是<span class="literal">undefined</span>,</span><br><span class="line">                    传递的action是:&#123;<span class="attr">type</span>:<span class="string">&#x27;@@REDUX/INIT_a.2.b.4&#x27;</span>&#125;</span><br><span class="line"></span><br><span class="line">(<span class="number">5</span>).在index.<span class="property">js</span>中监测store中状态的改变，一旦发生改变重新渲染&lt;<span class="title class_">App</span>/&gt;</span><br><span class="line">    备注：redux只负责管理状态，至于状态的改变驱动着页面的展示，要靠我们自己写。</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="求和案例-redux完整版"><a href="#求和案例-redux完整版" class="headerlink" title="求和案例_redux完整版"></a>求和案例_redux完整版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">新增文件：</span><br><span class="line"><span class="number">1.</span>count_action.<span class="property">js</span> 专门用于创建action对象</span><br><span class="line"><span class="number">2.</span>constant.<span class="property">js</span> 放置容易写错的type值</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="求和案例-redux异步action版"><a href="#求和案例-redux异步action版" class="headerlink" title="求和案例_redux异步action版"></a>求和案例_redux异步action版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).明确：延迟的动作不想交给组件自身，想交给<span class="title function_">action</span></span><br><span class="line">(<span class="number">2</span>).何时需要异步action：想要对状态进行操作，但是具体的数据靠异步任务返回。</span><br><span class="line">(<span class="number">3</span>).具体编码：</span><br><span class="line">			<span class="number">1</span>).<span class="property">yarn</span> add redux-thunk，并配置在store中</span><br><span class="line">			<span class="number">2</span>).创建action的函数不再返回一般对象，而是一个函数，该函数中写异步任务。</span><br><span class="line">			<span class="number">3</span>).异步任务有结果后，分发一个同步的action去真正操作数据。</span><br><span class="line">(<span class="number">4</span>).备注：异步action不是必须要写的，完全可以自己等待异步任务的结果了再去分发同步action。</span><br></pre></td></tr></table></figure>
+<h3 id="求和案例-react-redux基本使用"><a href="#求和案例-react-redux基本使用" class="headerlink" title="求和案例_react-redux基本使用"></a>求和案例_react-redux基本使用</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).明确两个概念：</span><br><span class="line">        <span class="number">1</span>).<span class="property">UI</span>组件:不能使用任何redux的api，只负责页面的呈现、交互等。</span><br><span class="line">        <span class="number">2</span>).容器组件：负责和redux通信，将结果交给<span class="variable constant_">UI</span>组件。</span><br><span class="line">(<span class="number">2</span>).如何创建一个容器组件————靠react-redux 的 connect函数</span><br><span class="line">        <span class="title function_">connect</span>(mapStateToProps,mapDispatchToProps)(<span class="variable constant_">UI</span>组件)</span><br><span class="line">            -<span class="attr">mapStateToProps</span>:映射状态，返回值是一个对象</span><br><span class="line">            -<span class="attr">mapDispatchToProps</span>:映射操作状态的方法，返回值是一个对象</span><br><span class="line">(<span class="number">3</span>).备注<span class="number">1</span>：容器组件中的store是靠props传进去的，而不是在容器组件中直接引入</span><br><span class="line">(<span class="number">4</span>).备注<span class="number">2</span>：mapDispatchToProps，也可以是一个对象</span><br></pre></td></tr></table></figure>
+
+<h3 id="求和案例-react-redux优化"><a href="#求和案例-react-redux优化" class="headerlink" title="求和案例_react-redux优化"></a>求和案例_react-redux优化</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).容器组件和<span class="variable constant_">UI</span>组件整合一个文件</span><br><span class="line">(<span class="number">2</span>).无需自己给容器组件传递store，给&lt;<span class="title class_">App</span>/&gt;包裹一个&lt;<span class="title class_">Provider</span> store=&#123;store&#125;&gt;即可。</span><br><span class="line">(<span class="number">3</span>).使用了react-redux后也不用再自己检测redux中状态的改变了，容器组件可以自动完成这个工作。</span><br><span class="line">(<span class="number">4</span>).<span class="property">mapDispatchToProps</span>也可以简单的写成一个对象</span><br><span class="line">(<span class="number">5</span>).一个组件要和redux“打交道”要经过哪几步？</span><br><span class="line">    <span class="number">1</span>).定义好<span class="variable constant_">UI</span>组件---不暴露</span><br><span class="line">    <span class="number">2</span>).引入connect生成一个容器组件，并暴露，写法如下：</span><br><span class="line">            <span class="title function_">connect</span>(</span><br><span class="line">                <span class="function"><span class="params">state</span> =&gt;</span> (&#123;<span class="attr">key</span>:value&#125;), <span class="comment">//映射状态</span></span><br><span class="line">                &#123;<span class="attr">key</span>:xxxxxAction&#125; <span class="comment">//映射操作状态的方法</span></span><br><span class="line">            )(<span class="variable constant_">UI</span>组件)</span><br><span class="line">    <span class="number">3</span>).在<span class="variable constant_">UI</span>组件中通过<span class="variable language_">this</span>.<span class="property">props</span>.<span class="property">xxxxxxx</span>读取和操作状态</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="求和案例-react-redux数据共享版"><a href="#求和案例-react-redux数据共享版" class="headerlink" title="求和案例_react-redux数据共享版"></a>求和案例_react-redux数据共享版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).定义一个<span class="title class_">Pserson</span>组件，和<span class="title class_">Count</span>组件通过redux共享数据。</span><br><span class="line">(<span class="number">2</span>).为<span class="title class_">Person</span>组件编写：reducer、action，配置constant常量。</span><br><span class="line">(<span class="number">3</span>).重点：<span class="title class_">Person</span>的reducer和<span class="title class_">Count</span>的<span class="title class_">Reducer</span>要使用combineReducers进行合并，合并后的总状态是一个对象！！！</span><br><span class="line">(<span class="number">4</span>).交给store的是总reducer，最后注意在组件中取出状态的时候，记得“取到位”。</span><br></pre></td></tr></table></figure>
+
+<h3 id="求和案例-react-redux开发者工具的使用"><a href="#求和案例-react-redux开发者工具的使用" class="headerlink" title="求和案例_react-redux开发者工具的使用"></a>求和案例_react-redux开发者工具的使用</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).<span class="property">yarn</span> add redux-devtools-<span class="title function_">extension</span></span><br><span class="line">(<span class="number">2</span>).<span class="property">store</span>中进行配置</span><br><span class="line">    <span class="keyword">import</span> &#123;composeWithDevTools&#125; <span class="keyword">from</span> <span class="string">&#x27;redux-devtools-extension&#x27;</span></span><br><span class="line">    <span class="keyword">const</span> store = <span class="title function_">createStore</span>(allReducer,<span class="title function_">composeWithDevTools</span>(<span class="title function_">applyMiddleware</span>(thunk)))</span><br></pre></td></tr></table></figure>
+
+<h3 id="求和案例-react-redux最终版"><a href="#求和案例-react-redux最终版" class="headerlink" title="求和案例_react-redux最终版"></a>求和案例_react-redux最终版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).所有变量名字要规范，尽量触发对象的简写形式。</span><br><span class="line">(<span class="number">2</span>).<span class="property">reducers</span>文件夹中，编写index.<span class="property">js</span>专门用于汇总并暴露所有的reducer</span><br></pre></td></tr></table></figure>
+
+
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://wuchu.site">吴楚</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://wuchu.site/2024/08/13/redux/">https://wuchu.site/2024/08/13/redux/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://wuchu.site" target="_blank">楚哥博客</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Redux/">Redux</a></div><div class="post_share"><div class="social-share" data-image="/img/island.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><div class="post-reward"><div class="reward-button"><i class="fas fa-qrcode"></i>赞助</div><div class="reward-main"><ul class="reward-all"><li class="reward-item"><a href="/img/money_wechat.jpg" target="_blank"><img class="post-qr-code-img" src="/img/money_wechat.jpg" alt="wechat"/></a><div class="post-qr-code-desc">wechat</div></li><li class="reward-item"><a href="/img/money_ali.jpg" target="_blank"><img class="post-qr-code-img" src="/img/money_ali.jpg" alt="alipay"/></a><div class="post-qr-code-desc">alipay</div></li></ul></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2024/08/13/axios/" title="Vue中对axios进行封装"><img class="cover" src="/img/boniu.jpg" onerror="onerror=null;src='/img/404.png'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Vue中对axios进行封装</div></div></a></div></nav><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">吴楚</div><div class="author-info__description">从0-1记录如何成为PG专家</div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">6</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/wuchuboy"><i class="fab fa-github"></i><span>关注我</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/wuchuboy" target="_blank" title="Github"><i class="fab fa-github" style="color: #ff7242;"></i></a><a class="social-icon" href="https://tool.gljlw.com/qqq/?qq=2106973531" target="_blank" title="QQ"><i class="fab fa-qq" style="color: #49b1f5;"></i></a><a class="social-icon" href="/img/wechat.jpg" target="_blank" title="WeiXin"><i class="fab fa-weixin" style="color: #54cf54;"></i></a></div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-redux%E7%B2%BE%E7%AE%80%E7%89%88"><span class="toc-number">1.</span> <span class="toc-text">求和案例_redux精简版</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-redux%E5%AE%8C%E6%95%B4%E7%89%88"><span class="toc-number">2.</span> <span class="toc-text">求和案例_redux完整版</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-redux%E5%BC%82%E6%AD%A5action%E7%89%88"><span class="toc-number">3.</span> <span class="toc-text">求和案例_redux异步action版</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-react-redux%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8"><span class="toc-number">4.</span> <span class="toc-text">求和案例_react-redux基本使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-react-redux%E4%BC%98%E5%8C%96"><span class="toc-number">5.</span> <span class="toc-text">求和案例_react-redux优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-react-redux%E6%95%B0%E6%8D%AE%E5%85%B1%E4%BA%AB%E7%89%88"><span class="toc-number">6.</span> <span class="toc-text">求和案例_react-redux数据共享版</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-react-redux%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7%E7%9A%84%E4%BD%BF%E7%94%A8"><span class="toc-number">7.</span> <span class="toc-text">求和案例_react-redux开发者工具的使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B1%82%E5%92%8C%E6%A1%88%E4%BE%8B-react-redux%E6%9C%80%E7%BB%88%E7%89%88"><span class="toc-number">8.</span> <span class="toc-text">求和案例_react-redux最终版</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2024/08/13/redux/" title="Redux的基本原理"><img src="/img/island.jpg" onerror="this.onerror=null;this.src='/img/404.png'" alt="Redux的基本原理"/></a><div class="content"><a class="title" href="/2024/08/13/redux/" title="Redux的基本原理">Redux的基本原理</a><time datetime="2024-08-13T12:43:52.000Z" title="发表于 2024-08-13 20:43:52">2024-08-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/08/13/axios/" title="Vue中对axios进行封装"><img src="/img/boniu.jpg" onerror="this.onerror=null;this.src='/img/404.png'" alt="Vue中对axios进行封装"/></a><div class="content"><a class="title" href="/2024/08/13/axios/" title="Vue中对axios进行封装">Vue中对axios进行封装</a><time datetime="2024-08-13T12:38:08.000Z" title="发表于 2024-08-13 20:38:08">2024-08-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/08/12/replication-slots/" title="PG复制槽的原理"><img src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/404.png'" alt="PG复制槽的原理"/></a><div class="content"><a class="title" href="/2024/08/12/replication-slots/" title="PG复制槽的原理">PG复制槽的原理</a><time datetime="2024-08-12T08:02:38.000Z" title="发表于 2024-08-12 16:02:38">2024-08-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/08/08/databse/" title="数据库基础知识"><img src="/img/wuchu.jpg" onerror="this.onerror=null;this.src='/img/404.png'" alt="数据库基础知识"/></a><div class="content"><a class="title" href="/2024/08/08/databse/" title="数据库基础知识">数据库基础知识</a><time datetime="2024-08-08T03:26:08.000Z" title="发表于 2024-08-08 11:26:08">2024-08-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/08/07/mvcc/" title="Postgresql中元组的隐藏字段与MVCC"><img src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/404.png'" alt="Postgresql中元组的隐藏字段与MVCC"/></a><div class="content"><a class="title" href="/2024/08/07/mvcc/" title="Postgresql中元组的隐藏字段与MVCC">Postgresql中元组的隐藏字段与MVCC</a><time datetime="2024-08-07T03:58:29.000Z" title="发表于 2024-08-07 11:58:29">2024-08-07</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url('/img/background.svg')"><div id="footer-wrap"><div class="copyright">&copy;2024 <i id="heartbeat" class="fa fas fa-heartbeat"></i> By 吴楚</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text"><a href="#">  <img  class="icp-icon"  src="https://beian.mps.gov.cn/img/logo01.dd7ff50e.png"><span>川公网安备12345678号</span></a></div></div><link rel="stylesheet" href="https://fastly.jsdelivr.net/gh/HCLonely/images@master/others/heartbeat.min.css"></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="translateLink" type="button" title="简繁转换">簡</button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div id="rightMenu"><div class="rightMenu-group rightMenu-small"><div class="rightMenu-item" id="menu-backward"><i class="fa-solid fa-arrow-left"></i></div><div class="rightMenu-item" id="menu-forward"><i class="fa-solid fa-arrow-right"></i></div><div class="rightMenu-item" id="menu-refresh"><i class="fa-solid fa-arrow-rotate-right"></i></div><div class="rightMenu-item" id="menu-home"><i class="fa-solid fa-house"></i></div></div><div class="rightMenu-group rightMenu-line rightMenuOther"><a class="rightMenu-item menu-link" href="/archives/"><i class="fa-solid fa-archive"></i><span>文章归档</span></a><a class="rightMenu-item menu-link" href="/categories/"><i class="fa-solid fa-folder-open"></i><span>文章分类</span></a><a class="rightMenu-item menu-link" href="/tags/"><i class="fa-solid fa-tags"></i><span>文章标签</span></a></div><div class="rightMenu-group rightMenu-line rightMenuNormal"><a class="rightMenu-item menu-link" id="menu-radompage" href="/about/"><i class="fa-solid fa-heart"></i><span>关于博主</span></a><div class="rightMenu-item" id="menu-translate"><i class="fa-solid fa-earth-asia"></i><span>繁简切换</span></div><div class="rightMenu-item" id="menu-darkmode"><i class="fa-solid fa-moon"></i><span>切换模式</span></div></div></div><div id="rightmenu-mask"></div><div><script src="/js/utils.js?v=4.13.0"></script><script src="/js/main.js?v=4.13.0"></script><script src="/js/tw_cn.js?v=4.13.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/node-snackbar@0.1.16/dist/snackbar.min.js"></script><div class="js-pjax"><script>if (!window.MathJax) {
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      tags: 'ams'
+    },
+    chtml: {
+      scale: 1.1
+    },
+    options: {
+      renderActions: {
+        findScript: [10, doc => {
+          for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+            const display = !!node.type.match(/; *mode=display/)
+            const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+            const text = document.createTextNode('')
+            node.parentNode.replaceChild(text, node)
+            math.start = {node: text, delim: '', n: 0}
+            math.end = {node: text, delim: '', n: 0}
+            doc.math.push(math)
+          }
+        }, '']
+      }
+    }
+  }
+  
+  const script = document.createElement('script')
+  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.min.js'
+  script.id = 'MathJax-script'
+  script.async = true
+  document.head.appendChild(script)
+} else {
+  MathJax.startup.document.state(0)
+  MathJax.texReset()
+  MathJax.typesetPromise()
+}</script><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"><script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/copy-tex.min.js"></script><script>(() => {
+  document.querySelectorAll('#article-container span.katex-display').forEach(item => {
+    btf.wrap(item, 'div', { class: 'katex-wrap'})
+  })
+})()</script><script>(() => {
+  const initValine = () => {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: '89WggGTU4RJJMUPC5HVpfSsS-gzGzoHsz',
+      appKey: 'vv2kKVwLzl0fRkVT3vqA1Gtx',
+      avatar: 'monsterid',
+      serverURLs: 'https://89wgggtu.lc-cn-n1-shared.com',
+      emojiMaps: "",
+      path: window.location.pathname,
+      visitor: false
+    }, {"meta":["nick","mail","link"],"requiredFields":["nick","mail"],"pageSize":10,"lang":"zh-CN","recordIP":true,"enableQQ":true,"placeholder":"留下QQ可以显示您的头像哦!!!","master":"a8df6712d43d0bb23d08d88057a4c55f","tagMeta":["博主","小伙伴","访客"],"friends":["fffe41a9862c3a3fbdb88c6a47f5093c"]}))
+  }
+
+  const loadValine = async () => {
+    if (typeof Valine === 'function') initValine()
+    else {
+      await getScript('/js/valine.js')
+      initValine()
+    }
+  }
+
+  if ('Valine' === 'Valine' || !true) {
+    if (true) btf.loadComment(document.getElementById('vcomment'),loadValine)
+    else setTimeout(loadValine, 0)
+  } else {
+    window.loadOtherComment = loadValine
+  }
+})()</script></div><script src="/js/myfooter.js"></script><script src="/js/snowflake.js"></script><script src="/js/ip_content.js"></script><script src="/js/weibo.js"></script><script defer data-pjax src="/js/rightMenu.js"></script><script defer="defer" id="fluttering_ribbon" mobile="true" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/dist/canvas-fluttering-ribbon.min.js"></script><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/dist/activate-power-mode.min.js"></script><script>POWERMODE.colorful = true;
+POWERMODE.shake = false;
+POWERMODE.mobile = true;
+document.body.addEventListener('input', POWERMODE);
+</script><script id="click-show-text" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/dist/click-show-text.min.js" data-mobile="true" data-text="艳宝,LOVE,艳宝" data-fontsize="15px" data-random="true" async="async"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><span id="loading-status"></span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="is-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据库加载中</span></div><div class="search-wrap"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div><hr/><div id="local-search-results"></div><div id="local-search-stats-wrap"></div></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=4.13.0"></script></div></div></body></html>
