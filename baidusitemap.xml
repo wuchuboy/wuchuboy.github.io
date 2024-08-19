@@ -1,27 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://wuchu.site/2024/08/13/redux/</loc>
-    <lastmod>2024-08-13</lastmod>
-  </url>
-  <url>
-    <loc>https://wuchu.site/2024/08/13/axios/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <loc>https://wuchu.site/2024/08/06/test/</loc>
+    <lastmod>2024-08-19</lastmod>
   </url>
   <url>
     <loc>https://wuchu.site/2024/08/07/mvcc/</loc>
-    <lastmod>2024-08-13</lastmod>
-  </url>
-  <url>
-    <loc>https://wuchu.site/2024/08/12/replication-slots/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
   </url>
   <url>
     <loc>https://wuchu.site/2024/08/08/databse/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
   </url>
   <url>
-    <loc>https://wuchu.site/2024/08/06/test/</loc>
-    <lastmod>2024-08-12</lastmod>
+    <loc>https://wuchu.site/2024/08/12/replication-slots/</loc>
+    <lastmod>2024-08-19</lastmod>
+  </url>
+  <url>
+    <loc>https://wuchu.site/2024/08/13/axios/</loc>
+    <lastmod>2024-08-17</lastmod>
+  </url>
+  <url>
+    <loc>https://wuchu.site/2024/08/13/redux/</loc>
+    <lastmod>2024-08-13</lastmod>
   </url>
 </urlset> 

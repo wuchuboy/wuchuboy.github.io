@@ -2,9 +2,36 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://wuchu.site/2024/08/13/redux/</loc>
+    <loc>https://wuchu.site/2024/08/06/test/</loc>
     
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://wuchu.site/2024/08/07/mvcc/</loc>
+    
+    <lastmod>2024-08-19</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://wuchu.site/2024/08/08/databse/</loc>
+    
+    <lastmod>2024-08-19</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://wuchu.site/2024/08/12/replication-slots/</loc>
+    
+    <lastmod>2024-08-19</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -12,6 +39,15 @@
   
   <url>
     <loc>https://wuchu.site/2024/08/13/axios/</loc>
+    
+    <lastmod>2024-08-17</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://wuchu.site/2024/08/13/redux/</loc>
     
     <lastmod>2024-08-13</lastmod>
     
@@ -23,42 +59,6 @@
     <loc>https://wuchu.site/about/index.html</loc>
     
     <lastmod>2024-08-13</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://wuchu.site/2024/08/07/mvcc/</loc>
-    
-    <lastmod>2024-08-13</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://wuchu.site/2024/08/12/replication-slots/</loc>
-    
-    <lastmod>2024-08-13</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://wuchu.site/2024/08/08/databse/</loc>
-    
-    <lastmod>2024-08-13</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://wuchu.site/2024/08/06/test/</loc>
-    
-    <lastmod>2024-08-12</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -103,7 +103,7 @@
 
   <url>
     <loc>https://wuchu.site/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -111,42 +111,42 @@
   
   <url>
     <loc>https://wuchu.site/tags/Axios/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/tags/MVCC/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/tags/Redux/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%9F%BA%E7%A1%80/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/tags/%E5%8E%9F%E5%88%9B/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/tags/%E5%A4%8D%E5%88%B6%E6%A7%BD/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
@@ -155,21 +155,21 @@
   
   <url>
     <loc>https://wuchu.site/categories/%E6%95%99%E7%A8%8B/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/categories/%E5%8E%9F%E7%90%86/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://wuchu.site/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/</loc>
-    <lastmod>2024-08-13</lastmod>
+    <lastmod>2024-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
