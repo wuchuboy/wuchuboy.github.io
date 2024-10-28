@@ -24,8 +24,8 @@
   </title>
 
   
-    <link rel="apple-touch-icon" href="/images/favicon.png">
-    <link rel="icon" href="/images/favicon.png">
+    <link rel="apple-touch-icon" href="/images/rab.svg">
+    <link rel="icon" href="/images/rab.svg">
   
 
   <!-- Raleway-Font -->
@@ -79,7 +79,7 @@
     <a href="/">
       <!-- 头像取消懒加载，添加no-lazy -->
       
-        <img src="/images/avatar.png" alt="">
+        <img src="/images/rab.svg" alt="">
       
     </a>
     <div class="nickname"><a href="/">梧杵</a></div>
@@ -88,11 +88,15 @@
     <ul>
       
         <li class="nav-item" data-path="/">
-          <a href="/">主页</a>
+          <a href="/">记录</a>
         </li>
       
         <li class="nav-item" data-path="/archives/">
-          <a href="/archives/">归档</a>
+          <a href="/archives/">随笔</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
         </li>
       
         <li class="nav-item" data-path="/tags/">
@@ -166,9 +170,20 @@
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-          2024-10-28 23:57:16
+          2024-10-29 00:24:57
         </span>
         
+              <span class="post-tags">
+                <i class="iconfont icon-tags mr-10" title="标签"></i>
+                
+                <span class="span--tag mr-8">
+                  <a href="/tags/postgresql/" title="postgresql">
+                    #postgresql
+                  </a>
+                </span>
+                
+              </span>
+          
       </div>
       <div class="markdown-body">
         <h4 id="1-查看哪个库xid最小"><a href="#1-查看哪个库xid最小" class="headerlink" title="1.查看哪个库xid最小"></a>1.查看哪个库xid最小</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> datname,(<span class="number">2147483647</span><span class="operator">-</span>pg_catalog.age(datfrozenxid))::<span class="type">int</span> <span class="keyword">FROM</span> pg_database <span class="keyword">order</span> <span class="keyword">by</span> <span class="number">2</span>; </span><br></pre></td></tr></table></figure>
@@ -224,16 +239,27 @@
             
               <a href="/2024/08/13/redux/" target="_self">
                 <i class="iconfont icon-chevronleft"></i>
-                <span>上一页</span>
+                <span>Redux的基本原理</span>
               </a>
             
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              2024-10-28 23:57:16
+              2024-10-29 00:24:57
             </span>
             
+                  <span class="post-tags">
+                    <i class="iconfont icon-tags mr-10" title="标签"></i>
+                    
+                    <span class="span--tag mr-8">
+                      <a href="/tags/postgresql/" title="postgresql">
+                        #postgresql
+                      </a>
+                    </span>
+                    
+                  </span>
+              
           </div>
           <div class="post-foot-prev">
             

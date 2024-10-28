@@ -24,8 +24,8 @@
   </title>
 
   
-    <link rel="apple-touch-icon" href="/images/favicon.png">
-    <link rel="icon" href="/images/favicon.png">
+    <link rel="apple-touch-icon" href="/images/rab.svg">
+    <link rel="icon" href="/images/rab.svg">
   
 
   <!-- Raleway-Font -->
@@ -79,7 +79,7 @@
     <a href="/">
       <!-- 头像取消懒加载，添加no-lazy -->
       
-        <img src="/images/avatar.png" alt="">
+        <img src="/images/rab.svg" alt="">
       
     </a>
     <div class="nickname"><a href="/">梧杵</a></div>
@@ -88,11 +88,15 @@
     <ul>
       
         <li class="nav-item" data-path="/">
-          <a href="/">主页</a>
+          <a href="/">记录</a>
         </li>
       
         <li class="nav-item" data-path="/archives/">
-          <a href="/archives/">归档</a>
+          <a href="/archives/">随笔</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
         </li>
       
         <li class="nav-item" data-path="/tags/">
@@ -173,6 +177,45 @@
     <div class="markdown-body">
       
     </div>
+      <br />
+      <br />
+    
+      <div class="comments-container">
+        
+
+
+
+
+  
+    <script async type="text/javascript" src='/js/valine.js' onload="loadValineSuc(this)"></script>
+  
+
+  <div id="vcomments"></div>
+
+  <script>
+    function loadValineSuc() {
+      new Valine({
+        el: '#vcomments',
+        appId: '89WggGTU4RJJMUPC5HVpfSsS-gzGzoHsz',
+        appKey: 'vv2kKVwLzl0fRkVT3vqA1Gtx',
+        placeholder: '欢迎留言，您的评论将被显示在下方！',
+        avatar: 'monsterid',
+        lang: 'zh-CN'
+      })
+    }
+  </script>
+
+    <style>
+      .comments-container .v .vempty {
+        display: none!important;
+      }
+    </style>
+
+
+
+
+      </div>
+    
   </div>
   
 
