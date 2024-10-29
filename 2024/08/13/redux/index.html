@@ -170,7 +170,7 @@
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-          2024-10-29 00:26:07
+          2024-10-29 19:54:02
         </span>
         
               <span class="post-categories">
@@ -206,7 +206,7 @@
         <img src="/2024/08/13/redux/redux.gif" class="" title="图片引用方法一">
 
 
-<h3 id="求和案例-redux精简版"><a href="#求和案例-redux精简版" class="headerlink" title="求和案例_redux精简版"></a>求和案例_redux精简版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).去除<span class="title class_">Count</span>组件自身的状态</span><br><span class="line">(<span class="number">2</span>).<span class="property">src</span>下建立:</span><br><span class="line">    -redux</span><br><span class="line">        -store.<span class="property">js</span></span><br><span class="line">        -count_reducer.<span class="property">js</span></span><br><span class="line"></span><br><span class="line">(<span class="number">3</span>).<span class="property">store</span>.<span class="property">js</span>：</span><br><span class="line">    <span class="number">1</span>).引入redux中的createStore函数，创建一个store</span><br><span class="line">    <span class="number">2</span>).<span class="property">createStore</span>调用时要传入一个为其服务的reducer</span><br><span class="line">    <span class="number">3</span>).记得暴露store对象</span><br><span class="line"></span><br><span class="line">(<span class="number">4</span>).<span class="property">count_reducer</span>.<span class="property">js</span>：</span><br><span class="line">    <span class="number">1</span>).<span class="property">reducer</span>的本质是一个函数，接收：preState,action，返回加工后的状态</span><br><span class="line">    <span class="number">2</span>).<span class="property">reducer</span>有两个作用：初始化状态，加工状态</span><br><span class="line">    <span class="number">3</span>).<span class="property">reducer</span>被第一次调用时，是store自动触发的，</span><br><span class="line">                    传递的preState是<span class="literal">undefined</span>,</span><br><span class="line">                    传递的action是:&#123;<span class="attr">type</span>:<span class="string">&#x27;@@REDUX/INIT_a.2.b.4&#x27;</span>&#125;</span><br><span class="line"></span><br><span class="line">(<span class="number">5</span>).在index.<span class="property">js</span>中监测store中状态的改变，一旦发生改变重新渲染&lt;<span class="title class_">App</span>/&gt;</span><br><span class="line">    备注：redux只负责管理状态，至于状态的改变驱动着页面的展示，要靠我们自己写。</span><br></pre></td></tr></table></figure>
+<h3 id="求和案例-redux精简版"><a href="#求和案例-redux精简版" class="headerlink" title="求和案例_redux精简版"></a>求和案例_redux精简版</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).去除<span class="title class_">Count</span>组件自身的状态</span><br><span class="line">(<span class="number">2</span>).<span class="property">src</span>下建立:</span><br><span class="line">    -redux</span><br><span class="line">        -store.<span class="property">js</span></span><br><span class="line">        -count_reducer.<span class="property">js</span></span><br><span class="line"></span><br><span class="line">(<span class="number">3</span>).<span class="property">store</span>.<span class="property">js</span>：</span><br><span class="line">    <span class="number">1</span>).引入redux中的createStore函数，创建一个store</span><br><span class="line">    <span class="number">2</span>).<span class="property">createStore</span>调用时要传入一个为其服务的reducer</span><br><span class="line">    <span class="number">3</span>).记得暴露store对象</span><br><span class="line"></span><br><span class="line">(<span class="number">4</span>).<span class="property">count_reducer</span>.<span class="property">js</span>：</span><br><span class="line">    <span class="number">1</span>).<span class="property">reducer</span>的本质是一个函数，接收：preState,action，返回加工后的状态</span><br><span class="line">    <span class="number">2</span>).<span class="property">reducer</span>有两个作用：初始化状态，加工状态</span><br><span class="line">    <span class="number">3</span>).<span class="property">reducer</span>被第一次调用时，是store自动触发的，</span><br><span class="line">                    传递的preState是<span class="literal">undefined</span>,</span><br><span class="line">                    传递的action是:&#123;<span class="attr">type</span>:<span class="string">&#x27;@@REDUX/INIT_a.2.b.4&#x27;</span>&#125;</span><br><span class="line"></span><br><span class="line">(<span class="number">5</span>).在index.<span class="property">js</span>中监测store中状态的改变，一旦发生改变重新渲染&lt;<span class="title class_">App</span>/&gt;</span><br><span class="line">    备注：redux只负责管理状态，至于状态的改变驱动着页面的展示，要靠我们自己写。</span><br></pre></td></tr></table></figure>
 
 
 <h3 id="求和案例-redux完整版"><a href="#求和案例-redux完整版" class="headerlink" title="求和案例_redux完整版"></a>求和案例_redux完整版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">新增文件：</span><br><span class="line"><span class="number">1.</span>count_action.<span class="property">js</span> 专门用于创建action对象</span><br><span class="line"><span class="number">2.</span>constant.<span class="property">js</span> 放置容易写错的type值</span><br></pre></td></tr></table></figure>
@@ -227,22 +227,21 @@
 <h3 id="求和案例-react-redux最终版"><a href="#求和案例-react-redux最终版" class="headerlink" title="求和案例_react-redux最终版"></a>求和案例_react-redux最终版</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span>).所有变量名字要规范，尽量触发对象的简写形式。</span><br><span class="line">(<span class="number">2</span>).<span class="property">reducers</span>文件夹中，编写index.<span class="property">js</span>专门用于汇总并暴露所有的reducer</span><br></pre></td></tr></table></figure>
 
 
-
       </div>
       
         <div class="prev-or-next">
           <div class="post-foot-next">
             
               <a href="/2024/10/28/xid_deal/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
                 <span>XID用的太多怎么办</span>
-                <i class="iconfont icon-chevronright"></i>
               </a>
             
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              2024-10-29 00:26:07
+              2024-10-29 19:54:02
             </span>
             
                   <span class="post-categories">
@@ -277,8 +276,8 @@
           <div class="post-foot-prev">
             
               <a href="/2024/08/13/axios/" target="_self">
-                <i class="iconfont icon-chevronleft"></i>
                 <span>Vue中对axios进行封装</span>
+                <i class="iconfont icon-chevronright"></i>
               </a>
             
           </div>

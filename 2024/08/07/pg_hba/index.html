@@ -170,7 +170,7 @@
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-          2024-10-29 19:30:14
+          2024-10-29 19:53:25
         </span>
         
               <span class="post-categories">
@@ -201,9 +201,9 @@
 <p>该文件用于控制访问安全性，管理客户端对于PostgreSQL服务器的访问权限，内容包括：允许哪些用户连接到哪个数据库，允许哪些IP或者哪个网段的IP连接到本服务器，以及指定连接时使用的身份验证模式。</p>
 </blockquote>
 <p>查询pg_hba.conf的文件位置</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo find / -name pg_hba.conf</span><br></pre></td></tr></table></figure>
+<figure class="highlight postgresql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo find / -<span class="type">name</span> pg_hba.conf</span><br></pre></td></tr></table></figure>
 <p>查看pg_hba.conf的文件内容</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cat /var/lib/pgsql/12/data/pg_hba.conf</span><br></pre></td></tr></table></figure>
+<figure class="highlight postgresql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cat /var/lib/pgsql/<span class="number">12</span>/data/pg_hba.conf</span><br></pre></td></tr></table></figure>
 <p>文件的核心内容</p>
 <p>四个核心参数：<strong>TYPE DATABASE USER ADDRESS METHOD</strong></p>
 <ul>
@@ -227,9 +227,9 @@
 </ol>
 <p>表示允许IP地址为10.10.56.17的所有用户可以通过MD5的密码验证方式连接主机上所有的数据库</p>
 <p><strong>也可以指定某个网段</strong></p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">TYPE  DATABASE        USER            ADDRESS                 METHOD</span><br><span class="line">host    test            pgtest           0.0.0.0/0               md5</span><br></pre></td></tr></table></figure>
+<figure class="highlight postgresql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">TYPE</span>  <span class="keyword">DATABASE</span>        <span class="keyword">USER</span>            ADDRESS                 <span class="keyword">METHOD</span></span><br><span class="line">host    test            pgtest           <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span>/<span class="number">0</span>               md5</span><br></pre></td></tr></table></figure>
 <p>表示允许 <code>任意iP</code> 通过用户名为 <code>pgtest</code> 和md5的 <code>密码</code> 验证方式连接主机上 <code>test</code> 的数据库<br><strong>- 不进行密码验证</strong></p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">TYPE  DATABASE        USER            ADDRESS                 METHOD</span><br><span class="line">host    test            pgtest           0.0.0.0/0               trust</span><br></pre></td></tr></table></figure>
+<figure class="highlight postgresql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">TYPE</span>  <span class="keyword">DATABASE</span>        <span class="keyword">USER</span>            ADDRESS                 <span class="keyword">METHOD</span></span><br><span class="line">host    test            pgtest           <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span>/<span class="number">0</span>               trust</span><br></pre></td></tr></table></figure>
 <ul>
 <li>表示任意IP地址的用户 <code>pgtest</code> 无需密码验证可直接连接访问该主机的 <code>test</code> 数据库</li>
 </ul>
@@ -239,16 +239,16 @@
         <div class="prev-or-next">
           <div class="post-foot-next">
             
-              <a href="/2024/08/07/log/" target="_self">
-                <span>Postgresql的日志系统</span>
-                <i class="iconfont icon-chevronright"></i>
+              <a href="/2024/08/07/mvcc/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>Postgresql中元组的隐藏字段与MVCC</span>
               </a>
             
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              2024-10-29 19:30:14
+              2024-10-29 19:53:25
             </span>
             
                   <span class="post-categories">
@@ -275,11 +275,6 @@
               
           </div>
           <div class="post-foot-prev">
-            
-              <a href="/2024/08/07/mvcc/" target="_self">
-                <i class="iconfont icon-chevronleft"></i>
-                <span>Postgresql中元组的隐藏字段与MVCC</span>
-              </a>
             
           </div>
         </div>
