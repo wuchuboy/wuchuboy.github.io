@@ -15,7 +15,7 @@
   
   <title>
     
-      归档 
+      404 
       
       
       |
@@ -121,140 +121,152 @@
 
 
       <div class="flex-container">
-        <!-- 归档页，展示本站所有文章，按照年份降序归类，url形式：https://yoursite/archives/ -->
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
 
-<!-- last: 按年份把文章分组，当前遍历到的年份 -->
-<!-- now: 当前遍历到的文章的发布年份 -->
 
-<div class="container archives">
-  <div class="post-list">
-    
-        <!-- 后续文章的发布年份呈现 -->
-        <div class="content-title">
-          <h2>
-            <span>2024</span>
-          </h2>
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="/plugins/mathjax/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="/plugins/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">404</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2024-10-29 20:02:32
+        </span>
+        
+      </div>
+      <div class="markdown-body">
+        <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404</title>
+</head>
+<body>
+    <center>
+        <h1>404</h1>
+        <h2>File Not Found.</h2>
+    </center>
+</body>
+</html>
+      </div>
+      
+        <div class="prev-or-next">
+          <div class="post-foot-next">
+            
+          </div>
+          <div class="post-attach">
+            <span class="post-pubtime">
+              <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+              2024-10-29 20:02:32
+            </span>
+            
+          </div>
+          <div class="post-foot-prev">
+            
+          </div>
         </div>
       
-      <div class="post-item" title="使用CTE 实现递归搜索">
-        <div class="time-m-d">10-29</div>
-        <div class="title">
-          <a href="/2024/10/29/cte/">
-            <span>使用CTE 实现递归搜索</span>
-          </a>
-        </div>
-      </div>
+    </div>
     
-      <div class="post-item" title="checkpoint是什么东西？一个点吗？一个位置？还是一个操作？">
-        <div class="time-m-d">10-29</div>
-        <div class="title">
-          <a href="/2024/10/29/checkpoint/">
-            <span>checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</span>
-          </a>
-        </div>
-      </div>
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link"><span class="toc-text">404</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link"><span class="toc-text">File Not Found.</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
     
-      <div class="post-item" title="使用CVM搭建PostgreSQL主从架构">
-        <div class="time-m-d">10-29</div>
-        <div class="title">
-          <a href="/2024/10/29/cvm_create_m_s/">
-            <span>使用CVM搭建PostgreSQL主从架构</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="PostgreSQL系统表">
-        <div class="time-m-d">10-29</div>
-        <div class="title">
-          <a href="/2024/10/29/pg-admin-tables/">
-            <span>PostgreSQL系统表</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="PostgreSQL参数">
-        <div class="time-m-d">10-29</div>
-        <div class="title">
-          <a href="/2024/10/29/pg_params/">
-            <span>PostgreSQL参数</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="XID用的太多怎么办">
-        <div class="time-m-d">10-28</div>
-        <div class="title">
-          <a href="/2024/10/28/xid_deal/">
-            <span>XID用的太多怎么办</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="Redux的基本原理">
-        <div class="time-m-d">08-13</div>
-        <div class="title">
-          <a href="/2024/08/13/redux/">
-            <span>Redux的基本原理</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="Vue中对axios进行封装">
-        <div class="time-m-d">08-13</div>
-        <div class="title">
-          <a href="/2024/08/13/axios/">
-            <span>Vue中对axios进行封装</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="PG复制槽的原理">
-        <div class="time-m-d">08-12</div>
-        <div class="title">
-          <a href="/2024/08/12/replication-slots/">
-            <span>PG复制槽的原理</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="数据库基础知识">
-        <div class="time-m-d">08-08</div>
-        <div class="title">
-          <a href="/2024/08/08/databse/">
-            <span>数据库基础知识</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="Postgresql的日志系统">
-        <div class="time-m-d">08-07</div>
-        <div class="title">
-          <a href="/2024/08/07/log/">
-            <span>Postgresql的日志系统</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="Postgresql中元组的隐藏字段与MVCC">
-        <div class="time-m-d">08-07</div>
-        <div class="title">
-          <a href="/2024/08/07/mvcc/">
-            <span>Postgresql中元组的隐藏字段与MVCC</span>
-          </a>
-        </div>
-      </div>
-    
-      <div class="post-item" title="Postgresql的pg_hba.conf文件">
-        <div class="time-m-d">08-07</div>
-        <div class="title">
-          <a href="/2024/08/07/pg_hba/">
-            <span>Postgresql的pg_hba.conf文件</span>
-          </a>
-        </div>
+      <div class="comments-container">
+        
+
+
+
+
+  
+    <script async type="text/javascript" src='/js/valine.js' onload="loadValineSuc(this)"></script>
+  
+
+  <div id="vcomments"></div>
+
+  <script>
+    function loadValineSuc() {
+      new Valine({
+        el: '#vcomments',
+        appId: '89WggGTU4RJJMUPC5HVpfSsS-gzGzoHsz',
+        appKey: 'vv2kKVwLzl0fRkVT3vqA1Gtx',
+        placeholder: '欢迎留言，您的评论将被显示在下方！',
+        avatar: 'monsterid',
+        lang: 'zh-CN'
+      })
+    }
+  </script>
+
+    <style>
+      .comments-container .v .vempty {
+        display: none!important;
+      }
+    </style>
+
+
+
+
       </div>
     
   </div>
-</div>
+
 
         
 <div class="footer">
@@ -556,6 +568,24 @@
 
 
         
+  
+    <div class="share-icon tools-bar-item">
+      <a href="javascript: void(0)" id="share-icon">
+        <i class="iconfont iconshare"></i>
+      </a>
+      <div class="share-content hidden">
+        
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + 404 + '&url=' + https%3A%2F%2Fwuchu.site%2F404.html + '" target="_blank" title="Twitter">
+            <i class="iconfont icon-twitter"></i>
+          </a>
+        
+        
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/404.html" target="_blank" title="Facebook">
+            <i class="iconfont icon-facebooksquare"></i>
+          </a>
+        
+      </div>
+    </div>
   
   
 <script src="/js/shares.js"></script>
