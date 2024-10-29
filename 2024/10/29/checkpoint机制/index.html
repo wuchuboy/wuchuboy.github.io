@@ -15,7 +15,7 @@
   
   <title>
     
-      Postgresql中元组的隐藏字段与MVCC 
+      checkpoint是什么东西？一个点吗？一个位置？还是一个操作？ 
       
       
       |
@@ -166,11 +166,11 @@
   <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
   <div class="container post-details" id="post-details">
     <div class="post-content">
-      <div class="post-title">Postgresql中元组的隐藏字段与MVCC</div>
+      <div class="post-title">checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</div>
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-          2024-10-29 19:09:13
+          2024-10-29 19:14:51
         </span>
         
               <span class="post-categories">
@@ -188,8 +188,8 @@
                 <i class="iconfont icon-tags mr-10" title="标签"></i>
                 
                 <span class="span--tag mr-8">
-                  <a href="/tags/MVCC/" title="MVCC">
-                    #MVCC
+                  <a href="/tags/checkpoint/" title="checkpoint">
+                    #checkpoint
                   </a>
                 </span>
                 
@@ -197,142 +197,123 @@
           
       </div>
       <div class="markdown-body">
-        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。</p>
-<h3 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h3><p>安装的pg版本为<code>11</code>，每个元组的头部信息在<code>HeapTupleHeaderData</code>中定义：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">HeapTupleHeaderData</span></span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">union</span></span><br><span class="line">	&#123;</span><br><span class="line">		HeapTupleFields t_heap; <span class="comment">//存放元组描述信息</span></span><br><span class="line">		DatumTupleFields t_datum;</span><br><span class="line">	&#125;			t_choice;</span><br><span class="line"></span><br><span class="line">	ItemPointerData t_ctid;		<span class="comment">/*元组的存放位置，一般值为“（blockid,itemid）”  */</span></span><br><span class="line">	uint16		t_infomask2;	<span class="comment">/* 属性和标识位 */</span></span><br><span class="line">	uint16		t_infomask;		<span class="comment">/* 其他标识位 */</span></span><br><span class="line">	uint8		t_hoff;			<span class="comment">/* 首部+位图+填充的长度 */</span></span><br><span class="line">	bits8		t_bits[<span class="number">1</span>];	<span class="comment">/* bitmap of NULLs */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>HeapTupleHeaderData中的<code>t_heap</code>存储着元组的一些描述信息，结构如下：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">HeapTupleFields</span></span><br><span class="line">&#123;</span><br><span class="line">TransactionId t_xmin;   <span class="comment">/* 插入或修改事务的ID */</span></span><br><span class="line">TransactionId t_xmax;   <span class="comment">/* 删除或者锁定事务的ID */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">union</span></span><br><span class="line">&#123;</span><br><span class="line">   CommandId t_cid;   <span class="comment">/* 插入或者删除的命令ID */</span></span><br><span class="line">   TransactionId t_xvac; <span class="comment">/* 执行vacuum full的事务ID */</span></span><br><span class="line">&#125;    t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure>
-
-<p>经过分析源码，发现核心的隐藏字段有：<strong>t_ctid、t_xmin、t_xmax、t_cid</strong></p>
-<p>执行命令：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> attname, attnum, attisdropped, attlen, attalign, attnotnull</span><br><span class="line"><span class="keyword">FROM</span> pg_catalog.pg_attribute <span class="keyword">WHERE</span> attrelid <span class="operator">=</span> <span class="string">&#x27;test&#x27;</span>::regclass</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> attnum;</span><br></pre></td></tr></table></figure>
-
-<p>发现实际表的隐藏字段如下所示：</p>
-<img src="/2024/08/07/mvcc/image.png" class="" title="图一">
-
-<p>所以说源码中的字段跟实际隐藏字段的name有区别，对应关系：</p>
-<table>
-<thead>
-<tr>
-<th>源码字段</th>
-<th>实际隐藏字段</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>t_ctid</td>
-<td>ctid</td>
-</tr>
-<tr>
-<td>t_xmin</td>
-<td>xmin</td>
-</tr>
-<tr>
-<td>t_xmax</td>
-<td>xmax</td>
-</tr>
-<tr>
-<td>t_cid</td>
-<td>cmax、cmin</td>
-</tr>
-</tbody></table>
-<h3 id="隐藏字段详细分析"><a href="#隐藏字段详细分析" class="headerlink" title="隐藏字段详细分析"></a>隐藏字段详细分析</h3><h5 id="t-ctid"><a href="#t-ctid" class="headerlink" title="t_ctid"></a>t_ctid</h5><img src="/2024/08/07/mvcc/image.2.png" class="" title="图2️"> 
-
-<img src="/2024/08/07/mvcc/image.4.png" class="" title="图3">
-
-<p>对应实际字段中的ctid，表示数据记录的物理行当信息，指的是一条记录位于哪个数据块的哪个位移上面。<br>格式<code>(blockid,itemid)</code>：拿上图其中的(0,1)来说；0表示块id；1表示在这块第一条记录。</p>
-<ul>
-<li><p><strong>当执行insert操作时，ctid的变化如下：</strong></p>
-<img src="/2024/08/07/mvcc/image.5.png" class="" title="图4">
-
-<img src="/2024/08/07/mvcc/image.6.png" class="" title="图5">
-
-<p>看出来是顺序累加。</p>
-</li>
-<li><p><strong>当执行更新操作时，ctid的变化：</strong></p>
-<img src="/2024/08/07/mvcc/image.7.png" class="" title="图6">
-
-<img src="/2024/08/07/mvcc/image.8.png" class="" title="图7">
-
-<img src="/2024/08/07/mvcc/image.11.png" class="" title="图8">
-
-<p>更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</p>
-<img src="/2024/08/07/mvcc/image.9.png" class="" title="图9"></li>
+        <h3 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h3><ul>
+<li><strong>WAL 日志就这么一直写下去，子子孙孙无穷匮也，磁盘不炸了吗</strong></li>
+<li><strong>我怎么知道数据库什么时候崩的？恢复的时候，WAL 日志应该从哪开始重放呢？</strong></li>
+<li><strong>checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</strong></li>
 </ul>
-<blockquote>
-<p><strong>发现并不会在（0，2）位置上插入新数据？</strong><br><strong>分析：</strong>新插入的数据通常不会立即填充刚刚清理的空间，而是优先使用表末尾的空闲空间，这涉及到数据库的存储管理和性能优化策略。减少碎片化：优先使用表末尾的空闲空间可以减少数据文件的碎片化，提高查询性能。提高插入性能：插入新数据到表末尾的空闲空间比在表中间找到一个合适的空闲位置更高效。</p>
-</blockquote>
-<h5 id="t-xmin"><a href="#t-xmin" class="headerlink" title="t_xmin"></a>t_xmin</h5><p>存储的是产生这个元组的事务ID，可能是insert或者update语句</p>
-<img src="/2024/08/07/mvcc/image.12.png" class="" title="图10">
-
-<h5 id="t-xmax"><a href="#t-xmax" class="headerlink" title="t_xmax"></a>t_xmax</h5><p>存储的是删除或者锁定这个元组的事务ID</p>
-<h5 id="t-cid"><a href="#t-cid" class="headerlink" title="t_cid"></a>t_cid</h5><p>包含cmin和cmax两个字段，分别存储创建这个元组的Command ID和删除这个元组的Command ID。在事务执行期间，会给改期间执行的所以命令设置一个唯一ID，也就是Command ID。</p>
-<h3 id="MVCC的可见性判断"><a href="#MVCC的可见性判断" class="headerlink" title="MVCC的可见性判断"></a>MVCC的可见性判断</h3><p>MVCC 可见性判断主要就是将元组的 xmin、xmax、cmin、cmax 以及 t_infomask 信息结合快照 snapshot 以及 CLOG 中的信息，根据可见性判断规则，决定一个元组是否可见。<br>可见性判断主要分为两个部分：</p>
+<h3 id="2、checkpoint"><a href="#2、checkpoint" class="headerlink" title="2、checkpoint"></a>2、checkpoint</h3><p>checkpoint是一个<strong>操作</strong>，执行这个操作的开始时刻，会记录当前开始时刻的 WAL 位置作为<strong>重做点</strong>，这个位置会被保存在文件中。 然后将该<strong>重做点之前</strong>所有 shared buffer 中的脏页均被刷入到存储。checkpoint又名检查点，<strong>一般checkpoint会将某个时间点之前的脏数据全部刷新到磁盘，以实现数据的一致性与完整性。</strong><br>目前各个流行的关系型数据库都具备checkpoint功能，其主要目的是为了缩短崩溃恢复时间，以Oracle为例，在进行数据恢复时，会以最近的checkpoint为参考点执行事务前滚。PostgreSQL在崩溃恢复时会以最近的checkpoint为基础，不断应用这之后的WAL日志。<br>简单来说：</p>
 <ul>
-<li>对元组的 xmin 进行可见性判断，即 insert 该元组的事务是否已提交，是否可见。</li>
-<li>对元组的 xmax 进行可见性判断，即该元组是否已被 update 或者 delete。</li>
+<li><strong>确保数据一致性：</strong>定期将内存中的脏页写入磁盘，确保数据库的一致性。</li>
+<li><strong>加速崩溃恢复：</strong>减少需要重放的 WAL 日志量，从而加速系统崩溃后的恢复过程。</li>
+<li><strong>控制 WAL 日志大小：</strong>通过记录检查点，限制 WAL 日志的增长，优化存储使用。</li>
 </ul>
-<p>为了简化逻辑，去除了一些兼容相关的干扰以及很少走到的一些代码路径。以下是关于元组 xmin 的判断规则：</p>
-<p>1.如果元组 xmin 未提交，判断条件为：!(t_infomask &amp; HEAP_XMIN_COMMITTED)</p>
-<p>1.1 如果元组的 xmin 无效，即 HeapTupleHeaderXminInvalid(tuple)，返回不可见</p>
-<p>1.2 如果元组的 xmin 在当前事务（包含子事务）中</p>
-<ul>
-<li>1.2.1 如果元组的 cmin 大于等于 快照的 commandId，返回不可见</li>
-<li>1.2.2 如果元组的 t_infomask 包含 HEAP_XMAX_INVALID 标记，即 xmax 无效，返回可见</li>
-<li>1.2.3 如果元组的 t_infomask 仅包含 HEAP_XMAX_EXCL_LOCK，返回可见</li>
-<li>1.2.4 如果元组的 xmax 不在当前事务中，设置标记 HEAP_XMAX_INVALID，返回可见</li>
-<li>1.2.5 如果元组的 cmax 大于等于快照的 commandId，返回可见，否则返回不可见</li>
-</ul>
-<p>1.3 如果元组的 xmin 在快照的活跃事务列表中，返回不可见</p>
-<p>1.4 如果元组的 xmin 在 clog 中已提交，设置标记 HEAP_XMIN_COMMITTED</p>
-<p>1.5 设置标记 HEAP_XMIN_INVALID，返回不可见</p>
-<p>2.如果元组的 xmin 已提交</p>
-<p>2.1 如果元组的 xmin 未冻结并且 xmin 在快照活跃事务列表中，返回不可见</p>
-<p><strong>到此说明元组的 xmin 已提交，即 insert 已提交，是否可见还得看 xmax，下面是关于 xmax 的判断规则</strong></p>
-<p>3.t_infomask 标记包含 HEAP_XMAX_INVALID，返回可见</p>
-<p>4.t_infomask 标记满足 HEAP_XMAX_IS_LOCKED_ONLY，返回可见</p>
-<p>5.如果 t_infomask 不包含 HEAP_XMAX_COMMITTED</p>
-<p>5.1 如果 xmax 在当前事务中</p>
-<ul>
-<li>5.1.1 cmax 大于等于快照的cid，返回可见</li>
-<li>5.1.2 cmax 小于快照的 cid，返回不可见</li>
-</ul>
-<p>5.2 如果 xmax 在快照的活跃事务列表中，返回可见</p>
-<p>5.3 如果 xmax 在 clog 中没有提交，设置标记 HEAP_XMAX_INVALID，返回可见</p>
-<p>5.4 设置标记 HEAP_XMAX_COMMITTED</p>
-<p>6.t_infomask 包含 HEAP_XMAX_COMMITTED</p>
-<p>6.1 如果 xmax 在快照的活跃事务列表中，返回可见</p>
-<p>除了以上描述的情况外，其他的都返回不可见</p>
-<p>7.其他都是返回不可见</p>
-<p>以上分析可以看出 MVCC 可见性判断的规则还是比较复杂的，考虑了很多场景，规则之间还有先后顺序依赖。总结可见性规则影响因素如下：</p>
-<ul>
-<li>xmin 是否已提交，是否有效</li>
-<li>xmin 是否在当前会话的事务中</li>
-<li>xmin 是否在快照活跃事务列表中</li>
-<li>xmin 在 clog 中的状态</li>
-<li>cmin 与 快照 cid 的大小比较</li>
-<li>xmax 是否已提交，是否有效</li>
-<li>xmax 是否在当前会话的事务中</li>
-<li>xmax 是否在快照活跃事务列表中</li>
-<li>xmax 在 clog 中的状态</li>
-<li>cmax 与快照 cid 的大小比较</li>
-</ul>
-<p>关于可见性分析，有两点需要注意：</p>
+<h3 id="3、怎么触发checkpoint？"><a href="#3、怎么触发checkpoint？" class="headerlink" title="3、怎么触发checkpoint？"></a>3、怎么触发checkpoint？</h3><p>分析源码，发现在<code>src/include/access/xlog.h</code>定义了几类触发的场景：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_IS_SHUTDOWN	0x0001	<span class="comment">/* 数据库关闭 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_END_OF_RECOVERY	0x0002	<span class="comment">/* 数据库恢复结束时触发 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_IMMEDIATE	0x0004	<span class="comment">/* 立即执行检查点操作，不进行延迟 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_FORCE		0x0008	<span class="comment">/* 强制执行检查点 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_FLUSH_ALL	0x0010	<span class="comment">/* 刷新所有页面，包括未记录表的页面 */</span></span></span><br><span class="line"><span class="comment">/* 以下标志对 RequestCheckpoint 函数非常重要 */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_WAIT			0x0020	<span class="comment">/* 等待检查点操作完成 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_REQUESTED	0x0040	<span class="comment">/* 已发出检查点请求 */</span></span></span><br><span class="line"><span class="comment">/* 以下标志指示检查点请求的原因 */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_CAUSE_XLOG	0x0080	<span class="comment">/* XLOG日志量达到一定程度触发 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> CHECKPOINT_CAUSE_TIME	0x0100	<span class="comment">/* 周期性触发 */</span></span></span><br></pre></td></tr></table></figure>
+<p>根据上述定义，也就是说，以下几种情况会触发PG数据库操作系统做检查点操作：</p>
 <ol>
-<li>即使是 select 查询，也可能会写 wal 日志，比如设置 HEAP_XMIN_COMMITTED 这个操作就会涉及写 wal 日志。</li>
-<li>此外即使 insert 事务已提交，已经写入 CLOG，但是该事务的事务号还没有从活跃事务列表中删除，那么元组仍然是不可见的。</li>
+<li>超级用户（其他用户不可）执行CHECKPOINT命令</li>
+<li>数据库shutdown</li>
+<li>数据库recovery完成</li>
+<li>XLOG日志量达到了触发checkpoint阈值</li>
+<li>周期性地进行checkpoint</li>
+<li>需要刷新所有脏页</li>
 </ol>
+<p>为了能够周期性的创建检查点，减少崩溃恢复时间，同时合并I&#x2F;O，PostgreSQL提供了<strong>辅助进程checkpointer</strong>。它会对不断检测周期时间以及上面的XLOG日志量阈值是否达到，而周期时间以及XLOG日志量阈值可以通过参数来设置大小，接下来介绍下与checkpoints相关的参数。</p>
+<figure class="highlight plaintext"><figcaption><span>log的最大数量，系统默认值是3。超过该数量的WAL日志，会自动触发checkpoint。</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">```checkpoint_timeout```：系统自动执行checkpoint之间的最大时间间隔。系统默认值是5分钟。</span><br><span class="line">```checkpoint_completion_target```：该参数表示checkpoint的完成时间占两次checkpoint时间间隔的比例，系统默认值是0.5,也就是说每个checkpoint需要在checkpoints间隔时间的50%内完成。</span><br><span class="line">```checkpoint_warning```：系统默认值是30秒，如果checkpoints的实际发生间隔小于该参数，将会在server log中写入写入一条相关信息。可以通过设置为0禁用。</span><br><span class="line"></span><br><span class="line">### 4、checkpoint 操作的过程</span><br><span class="line"></span><br><span class="line">&lt;img src=&quot;/Users/wuchu/Library/Application Support/typora-user-images/image-20240925154352746.png&quot; alt=&quot;image-20240925154352746&quot; style=&quot;zoom: 33%;&quot; /&gt;</span><br><span class="line">**checkpoint操作执行的过程**：</span><br><span class="line"></span><br><span class="line">假设要执行三条insert语句</span><br><span class="line">- checkpoint 操作首先记录下 checkpoint 的开始位置，记录为 **redo point**（重做位点）</span><br><span class="line">- checkpoint 将 shared buffer 中的数据刷到磁盘里面去</span><br><span class="line">- 这时候数据库又来了一条 SQL insert 3</span><br><span class="line">- checkpoint 刷脏结束，redo point 之前的数据均已被刷到磁盘存储（数据1和2）</span><br><span class="line">- 每个检查点后，第一次数据页的变化会导致整个页面会被记录在XLOG日志中</span><br><span class="line"></span><br><span class="line">&gt; 这时候假如开始数据库恢复，那么数据库会从```pg_control``` 文件中找到最新的 checkpoint 位置，再从 checkpoint 找到 redo point 的位置，开始重放日志。不难看出，1 和 2 这两个数据在 checkpoint 中已经持久化到磁盘存储，WAL 日志中也只有 INSERT 3 操作需要重放。</span><br><span class="line">&gt; ```ControlFileData``` 结构定义了``` pg_control ```文件中存储的数据格式。这个结构位于 ```src/include/catalog/pg_control.h ```文件中。</span><br><span class="line">&gt;</span><br></pre></td></tr></table></figure>
+<p>typedef struct ControlFileData<br>{<br>    uint32      system_identifier; &#x2F;* 唯一的系统标识符，用于区分不同的数据库实例 <em>&#x2F;<br>    uint32      pg_control_version; &#x2F;</em> pg_control 文件的版本号 <em>&#x2F;<br>    uint32      catalog_version_no; &#x2F;</em> 数据库的目录版本号 <em>&#x2F;<br>    DBState     state;              &#x2F;</em> 数据库的当前状态 <em>&#x2F;<br>    pg_time_t   time;               &#x2F;</em> 最后一次更新的时间戳 <em>&#x2F;<br>    XLogRecPtr  checkPoint;         &#x2F;</em> 最后一个检查点的 WAL（Write-Ahead Logging）记录指针 <em>&#x2F;<br>    XLogRecPtr  prevCheckPoint;     &#x2F;</em> 上一个检查点的 WAL 记录指针 <em>&#x2F;<br>    CheckPoint  checkPointCopy;     &#x2F;</em> 最后一个检查点记录的副本 <em>&#x2F;<br>    XLogRecPtr  unloggedLSN;        &#x2F;</em> 当前未记录的 LSN（日志序列号） *&#x2F;<br>    &#x2F;&#x2F; 其他字段省略<br>} ControlFileData;</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">读取和写入 ```pg_control``` 文件的主要函数```ReadControlFile```、```UpdateControlFile```位于```src/backend/access/transam/xlog.c``` 文件中。</span><br><span class="line"></span><br><span class="line">查看源码，发现**检查点机制的主要实现**位于 ```src/backend/postmaster/checkpointer.c``` 文件中。以下是一些关键函数和它们的作用：</span><br><span class="line">```CheckpointerMain```：检查点进程的主函数。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>void<br>CheckpointerMain(void)<br>{<br>    &#x2F;&#x2F; 初始化和设置信号处理<br>    pqsignal(SIGHUP, SignalHandlerForConfigReload);<br>    pqsignal(SIGINT, SignalHandlerForShutdownRequest);<br>    pqsignal(SIGTERM, SignalHandlerForShutdownRequest);<br>    pqsignal(SIGQUIT, SignalHandlerForCrashRequest);<br>    pqsignal(SIGUSR1, SignalHandlerForCheckpointRequest);<br>    pqsignal(SIGUSR2, SignalHandlerForCheckpointRequest);</p>
+<pre><code>// 主循环
+for (;;)
+&#123;
+    // 等待检查点请求或超时
+    WaitLatchOrSocket(MyLatch, WL_LATCH_SET | WL_TIMEOUT | WL_POSTMASTER_DEATH, -1, WAIT_EVENT_CHECKPOINTER_MAIN);
+
+    // 处理检查点请求
+    if (got_SIGHUP)
+    &#123;
+        got_SIGHUP = false;
+        ProcessConfigFile(PGC_SIGHUP);
+    &#125;
+
+    if (shutdown_requested)
+    &#123;
+        CreateCheckPoint(CHECKPOINT_IS_SHUTDOWN | CHECKPOINT_IMMEDIATE);
+        proc_exit(0);
+    &#125;
+
+    if (checkpoint_requested)
+    &#123;
+        checkpoint_requested = false;
+        CreateCheckPoint(0);
+    &#125;
+&#125;
+</code></pre>
+<p>}</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">```CreateCheckPoint```：执行检查点操作的核心函数，负责将脏页写入磁盘并记录检查点信息。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>void<br>CreateCheckPoint(int flags)<br>{<br>    CheckPoint  checkpoint;<br>    XLogRecPtr  recptr;</p>
+<pre><code>// 初始化检查点结构
+MemSet(&amp;checkpoint, 0, sizeof(CheckPoint));
+
+// 获取当前 WAL 位置
+recptr = GetInsertRecPtr();
+
+// 将脏页写入磁盘
+CheckPointBuffers(flags);
+
+// 记录检查点信息到 WAL 日志
+recptr = XLogInsert(RM_XLOG_ID, XLOG_CHECKPOINT_SHUTDOWN, &amp;checkpoint);
+
+// 更新控制文件
+UpdateControlFile();
+</code></pre>
+<p>}</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">```CheckPointBuffers```：将脏页写入磁盘。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>void<br>CheckPointBuffers(int flags)<br>{<br>    int num_to_write;<br>    int num_written;</p>
+<pre><code>// 计算需要写入的脏页数量
+num_to_write = GetNumDirtyBuffers();
+
+// 写入脏页
+num_written = WriteDirtyBuffers(num_to_write);
+
+// 同步磁盘
+if (num_written &gt; 0)
+    SyncDataDirectory();
+</code></pre>
+<p>}</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">```CheckPointWriteDelay```：控制写入速率，避免 I/O 峰值。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>void<br>CheckPointWriteDelay(int flags)<br>{<br>    static int checkpoint_write_delay &#x3D; 0;</p>
+<pre><code>// 计算写入延迟
+if (checkpoint_write_delay &gt; 0)
+    pg_usleep(checkpoint_write_delay);
+</code></pre>
+<p>}</p>
+<pre><code>
+###  5、总结
+
+- checkpoint中记录了 redo point，标记 redo point 之前的数据均已刷脏，完成持久化存储
+- 标记 redo point 之前的 WAL 日志可以被清理回收
+- 每个检查点后，第一次数据页的变化会导致整个页面会被记录在XLOG日志中。
+- 检查点的开销比较高，可以用checkpoint_warning自检，相应调大checkpoint_segments
+- 检查点的位置保存在文件 pg_control，pg_control文件被损坏可能会导致数据库不可用
+</code></pre>
 
       </div>
       
         <div class="prev-or-next">
           <div class="post-foot-next">
             
+              <a href="/2024/10/29/pg%E7%B3%BB%E7%BB%9F%E8%A1%A8/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>PostgreSQL系统表</span>
+              </a>
+            
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              2024-10-29 19:09:13
+              2024-10-29 19:14:51
             </span>
             
                   <span class="post-categories">
@@ -350,8 +331,8 @@
                     <i class="iconfont icon-tags mr-10" title="标签"></i>
                     
                     <span class="span--tag mr-8">
-                      <a href="/tags/MVCC/" title="MVCC">
-                        #MVCC
+                      <a href="/tags/checkpoint/" title="checkpoint">
+                        #checkpoint
                       </a>
                     </span>
                     
@@ -360,8 +341,8 @@
           </div>
           <div class="post-foot-prev">
             
-              <a href="/2024/08/07/PostgreSQL%E7%9A%84%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F/" target="_self">
-                <span>Postgresql的日志系统</span>
+              <a href="/2024/10/29/cte/" target="_self">
+                <span>使用CTE 实现递归搜索</span>
                 <i class="iconfont icon-chevronright"></i>
               </a>
             
@@ -377,7 +358,7 @@
     <div class="title">目录</div>
     <div class="catalog-content">
       
-        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90"><span class="toc-text">源码分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%9A%90%E8%97%8F%E5%AD%97%E6%AE%B5%E8%AF%A6%E7%BB%86%E5%88%86%E6%9E%90"><span class="toc-text">隐藏字段详细分析</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#t-ctid"><span class="toc-text">t_ctid</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-xmin"><span class="toc-text">t_xmin</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-xmax"><span class="toc-text">t_xmax</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-cid"><span class="toc-text">t_cid</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#MVCC%E7%9A%84%E5%8F%AF%E8%A7%81%E6%80%A7%E5%88%A4%E6%96%AD"><span class="toc-text">MVCC的可见性判断</span></a></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81%E8%83%8C%E6%99%AF"><span class="toc-text">1、背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81checkpoint"><span class="toc-text">2、checkpoint</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81%E6%80%8E%E4%B9%88%E8%A7%A6%E5%8F%91checkpoint%EF%BC%9F"><span class="toc-text">3、怎么触发checkpoint？</span></a></li></ol>
       
     </div>
   </div>
@@ -735,12 +716,12 @@
       </a>
       <div class="share-content hidden">
         
-          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + Postgresql%E4%B8%AD%E5%85%83%E7%BB%84%E7%9A%84%E9%9A%90%E8%97%8F%E5%AD%97%E6%AE%B5%E4%B8%8EMVCC + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F08%2F07%2Fmvcc%2F + '" target="_blank" title="Twitter">
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + checkpoint%E6%98%AF%E4%BB%80%E4%B9%88%E4%B8%9C%E8%A5%BF%EF%BC%9F%E4%B8%80%E4%B8%AA%E7%82%B9%E5%90%97%EF%BC%9F%E4%B8%80%E4%B8%AA%E4%BD%8D%E7%BD%AE%EF%BC%9F%E8%BF%98%E6%98%AF%E4%B8%80%E4%B8%AA%E6%93%8D%E4%BD%9C%EF%BC%9F + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F10%2F29%2Fcheckpoint%25E6%259C%25BA%25E5%2588%25B6%2F + '" target="_blank" title="Twitter">
             <i class="iconfont icon-twitter"></i>
           </a>
         
         
-          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/08/07/mvcc/" target="_blank" title="Facebook">
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/10/29/checkpoint%E6%9C%BA%E5%88%B6/" target="_blank" title="Facebook">
             <i class="iconfont icon-facebooksquare"></i>
           </a>
         

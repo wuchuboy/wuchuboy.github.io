@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="吴楚" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="练习两年半的PG小学生" />
+  
+  
+  
+  <title>
+    
+      使用CVM搭建PostgreSQL主从架构 
+      
+      
+      |
+    
+     梧杵
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/rab.svg">
+    <link rel="icon" href="/images/rab.svg">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="/plugins/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+  
+    <link href="/plugins/jquery.fancybox.min.css" rel="stylesheet">
+    <script defer type="text/javascript" src="/plugins/jquery.fancybox.min.js"></script>
+  
+  
+<script src="/js/fancybox.js"></script>
+
+
+  
+
+  
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+<meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="梧杵" type="application/atom+xml">
+</head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img src="/images/rab.svg" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">梧杵</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">记录</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">随笔</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/tags/">
+          <a href="/tags/">标签</a>
+        </li>
+      
+        <li class="nav-item" data-path="/friends/">
+          <a href="/friends/">朋友</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+<script src="/js/activeNav.js"></script>
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="/plugins/mathjax/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="/plugins/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">使用CVM搭建PostgreSQL主从架构</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2024-10-29 19:13:57
+        </span>
+        
+              <span class="post-categories">
+                <i class="iconfont icon-bookmark" title="分类"></i>
+                
+                <span class="span--category">
+                  <a href="/categories/PostgreSQL/" title="PostgreSQL">
+                    <b>#</b> PostgreSQL
+                  </a>
+                </span>
+                
+              </span>
+          
+              <span class="post-tags">
+                <i class="iconfont icon-tags mr-10" title="标签"></i>
+                
+                <span class="span--tag mr-8">
+                  <a href="/tags/%E4%B8%BB%E4%BB%8E%E6%9E%B6%E6%9E%84/" title="主从架构">
+                    #主从架构
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <h2 id="使用CVM搭建-PostgreSQL-主从架构"><a href="#使用CVM搭建-PostgreSQL-主从架构" class="headerlink" title="使用CVM搭建 PostgreSQL 主从架构"></a>使用CVM搭建 PostgreSQL 主从架构</h2><blockquote>
+<p>PostgreSQL 是一个开源对象关系型数据库管理系统，并侧重于可扩展性和标准的符合性。PostgreSQL 面向企业复杂 SQL 处理的 OLTP 在线事务处理场景，支持 NoSQL 数据类型（JSON&#x2F;XML&#x2F;hstore），支持 GIS（Geographic Information System 或 Geo－Information system）地理信息处理，在可靠性、数据完整性方面有良好声誉，适用于互联网网站、位置应用系统、复杂数据对象处理等应用场景。</p>
+</blockquote>
+<h2 id="软件版本"><a href="#软件版本" class="headerlink" title="软件版本"></a>软件版本</h2><p>本文搭建的 PostgreSQL 组成及版本使用说明如下：</p>
+<p>Linux：Linux 操作系统，本文以 CentOS 7.6 为例。</p>
+<p>PostgreSQL：关系型数据库管理系统，本文以 PostgreSQL 12 为例。</p>
+<h2 id="前提条件"><a href="#前提条件" class="headerlink" title="前提条件"></a>前提条件</h2><p>已创建两台云服务器实例（一台云服务器实例作为主节点，另一台云服务器实例作为从节点）。</p>
+<p>新建的两台云服务器实例已配置安全组规则：放通5432端口。 </p>
+<h2 id="操作步骤"><a href="#操作步骤" class="headerlink" title="操作步骤"></a>操作步骤</h2><h3 id="1、配置主节点"><a href="#1、配置主节点" class="headerlink" title="1、配置主节点"></a>1、配置主节点</h3><p>登录主节点实例，执行以下命令，升级所有包、系统版本和内核。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum update -y</span><br></pre></td></tr></table></figure>
+
+<p>依次执行以下命令，安装 PostgreSQL。（本文以使用 PostgreSQL 12 版本为例）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">wget --no-check-certificate https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm</span><br><span class="line">rpm -ivh pgdg-redhat-repo-latest.noarch.rpm</span><br><span class="line">yum install postgresql12-server postgresql12-contrib -y</span><br><span class="line">/usr/pgsql-12/bin/postgresql12-setup initdb</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，启动服务。﻿</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl start postgresql-12.service</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，设置服务开机自启动。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl enable postgresql-12.service </span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，登录 postgres 用户。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">su - postgres</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，进入 PostgreSQL 交互终端。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">psql</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，为用户 postgres 设置密码，增强安全性。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ALTER USER postgres WITH PASSWORD &#x27;*******&#x27;;</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，创建数据库账号，并设置密码及登录权限和备份权限。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">create role 账户名 login replication encrypted password &#x27;自定义密码&#x27;;</span><br></pre></td></tr></table></figure>
+
+<p>本文以创建数据库账号 replica，密码 ****** 为例，则执行以下命令。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">create role replica login replication encrypted password &#x27;******&#x27;;</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，查询账号是否创建成功。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SELECT usename from pg_user;</span><br></pre></td></tr></table></figure>
+
+<p>返回如下结果，表示已创建成功。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">usename  </span><br><span class="line"><span class="comment">----------</span></span><br><span class="line">postgres</span><br><span class="line">replica</span><br><span class="line">(<span class="number">2</span> <span class="keyword">rows</span>)</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，查询权限是否创建成功。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SELECT rolname from pg_roles;</span><br></pre></td></tr></table></figure>
+
+<p>返回如下结果，表示已创建成功。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">rolname      </span><br><span class="line">-------------------</span><br><span class="line">pg_signal_backend</span><br><span class="line">postgres</span><br><span class="line">replica</span><br><span class="line">(3 rows)</span><br></pre></td></tr></table></figure>
+
+<p>输入 <strong>\q</strong>，按 <strong>Enter</strong>，退出 SQL 终端。</p>
+<p>输入 <strong>exit</strong>，按 <strong>Enter</strong>，退出 PostgreSQL。</p>
+<p>执行以下命令，打开 pg_hba.conf 配置文件，设置 replica 用户白名单。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vim /var/lib/pgsql/12/data/pg_hba.conf</span><br></pre></td></tr></table></figure>
+
+<p>按 i 切换至编辑模式，在 IPv4 local connections 段添加如下两行内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">host    all             all         &lt;从节点的VPC IPv4网段&gt;          md5     #允许 VPC 网段中 md5 密码认证连接</span><br><span class="line">host    replication     replica     &lt;从节点的VPC IPv4网段&gt;          md5     #允许用户从 replication 数据库进行数据同步</span><br></pre></td></tr></table></figure>
+
+<p>例如，数据库账号为 replica，从节点的 VPC IPv4 网段为 xx.xx.xx.xx&#x2F;16，则在 IPv4 local connections 段添加如下内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">host    all             all             xx.xx.xx.xx/16         md5</span><br><span class="line">host    replication     replica         xx.xx.xx.xx/16         md5</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>Esc</strong>，输入 <strong>:wq</strong>，保存文件返回。</p>
+<p>执行以下命令，打开 postgresql.conf 文件。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vim /var/lib/pgsql/12/data/postgresql.conf</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>i</strong> 进入编辑模式，分别找到以下参数，并将参数修改为以下内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">listen_addresses = &#x27;*&#x27;   #监听的内网 IP 地址</span><br><span class="line">max_connections = 100    #最大连接数，从库的 max_connections 必须要大于主库的</span><br><span class="line">wal_level = hot_standby  #启用热备模式</span><br><span class="line">synchronous_commit = on  #开启同步复制</span><br><span class="line">max_wal_senders = 32     #同步最大的进程数量</span><br><span class="line">wal_sender_timeout = 60s #流复制主机发送数据的超时时间</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>Esc</strong>，输入 <strong>:wq</strong>，保存文件返回。</p>
+<p>执行以下命令，重启服务。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl restart postgresql-12.service</span><br></pre></td></tr></table></figure>
+
+<h3 id="2、配置从节点"><a href="#2、配置从节点" class="headerlink" title="2、配置从节点"></a>2、配置从节点</h3><p>登录从节点实例。</p>
+<p>执行以下命令，升级所有包、系统版本和内核。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum update -y</span><br></pre></td></tr></table></figure>
+
+<p>依次执行以下命令，安装 PostgreSQL。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">wget --no-check-certificate https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm﻿</span><br><span class="line">rpm -ivh pgdg-redhat-repo-latest.noarch.rpm</span><br><span class="line">yum install postgresql12-server postgresql12-contrib -y</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，使用 pg_basebackup 基础备份工具制定备份目录。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pg_basebackup -D /var/lib/pgsql/12/data -h &lt;主节点公网 IP&gt; -p 5432 -U replica -X stream -P</span><br></pre></td></tr></table></figure>
+
+<p>根据提示，输入数据库账号对应的密码，按 Enter。返回如下结果，表示备份成功。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Password: </span><br><span class="line">24526/24526 kB (100%), 1/1 tablespace</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，拷贝 master 配置相关文件。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cp /usr/pgsql-12/share/recovery.conf.sample /var/lib/pgsql/12/data/recovery.conf</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，打开 recovery.conf 文件。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vim /var/lib/pgsql/12/data/recovery.conf</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>i</strong> 切换至编辑模式，分别找到如下参数，并修改为如下内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">standby_mode = on     #声明此节点为从库</span><br><span class="line">primary_conninfo = &#x27;host=&lt;主节点公网 IP&gt; port=5432 user=数据库账号 password=数据库密码&#x27; #对应主库的连接信息</span><br><span class="line">recovery_target_timeline = &#x27;latest&#x27; #流复制同步到最新的数据</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>Esc</strong>，输入 <strong>:wq</strong>，保存文件返回。</p>
+<p>执行以下命令，打开 postgresql.conf 文件。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vim /var/lib/pgsql/12/data/postgresql.conf</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>i</strong> 切换至编辑模式，分别找到如下参数，并修改为如下内容：﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">max_connections = 1000             # 最大连接数，从库的 max_connections 必须要大于主库的</span><br><span class="line">hot_standby = on                   # 开启热备</span><br><span class="line">max_standby_streaming_delay = 30s  # 数据流备份的最大延迟时间</span><br><span class="line">wal_receiver_status_interval = 1s  # 从节点向主节点报告自身状态的最长间隔时间</span><br><span class="line">hot_standby_feedback = on          # 如果有错误的数据复制向主进行反馈</span><br></pre></td></tr></table></figure>
+
+<p>按 <strong>Esc</strong>，输入 <strong>:wq</strong>，保存文件返回。</p>
+<p>执行以下命令，修改数据目录的属组和属主。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">chown -R postgres.postgres /var/lib/pgsql/12/data</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，启动服务。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl start postgresql-12.service</span><br></pre></td></tr></table></figure>
+
+<p>执行以下命令，设置服务开机自启动。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl enable postgresql-12.service</span><br></pre></td></tr></table></figure>
+
+<h3 id="3、验证部署"><a href="#3、验证部署" class="headerlink" title="3、验证部署"></a>3、验证部署</h3><p>执行以下命令，从节点备份目录。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pg_basebackup -D /var/lib/pgsql/12/data -h &lt;主节点公网 IP&gt; -p 5432 -U replica -X stream -P</span><br></pre></td></tr></table></figure>
+
+<p>﻿输入数据库密码并按 <strong>Enter</strong>，返回如下结果，则表示已备份成功。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Password: 24526/24526 kB (100%), 1/1 tablespace</span><br></pre></td></tr></table></figure>
+
+<p>在主节点中，执行以下命令，查看 sender 进程。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ps aux |grep sender</span><br></pre></td></tr></table></figure>
+
+<p>﻿在从节点中，执行以下命令，查看 receiver 进程。﻿</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ps aux |grep receiver</span><br></pre></td></tr></table></figure>
+
+<p>返回如下结果，即表示可成功查看到 receiver 进程。</p>
+<p>在主节点中，依次执行以下命令，进入 PostgreSQL 交互终端，在主库中查看从库状态。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">su - postgres</span><br><span class="line">psql</span><br><span class="line">select * from pg_stat_replication;</span><br></pre></td></tr></table></figure>
+
+<p>﻿返回如下结果，即表示可成功查看到从库状态。</p>
+
+      </div>
+      
+        <div class="prev-or-next">
+          <div class="post-foot-next">
+            
+              <a href="/2024/10/28/xid_deal/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>XID用的太多怎么办</span>
+              </a>
+            
+          </div>
+          <div class="post-attach">
+            <span class="post-pubtime">
+              <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+              2024-10-29 19:13:57
+            </span>
+            
+                  <span class="post-categories">
+                    <i class="iconfont icon-bookmark" title="分类"></i>
+                    
+                    <span class="span--category">
+                      <a href="/categories/PostgreSQL/" title="PostgreSQL">
+                        <b>#</b> PostgreSQL
+                      </a>
+                    </span>
+                    
+                  </span>
+              
+                  <span class="post-tags">
+                    <i class="iconfont icon-tags mr-10" title="标签"></i>
+                    
+                    <span class="span--tag mr-8">
+                      <a href="/tags/%E4%B8%BB%E4%BB%8E%E6%9E%B6%E6%9E%84/" title="主从架构">
+                        #主从架构
+                      </a>
+                    </span>
+                    
+                  </span>
+              
+          </div>
+          <div class="post-foot-prev">
+            
+              <a href="/2024/10/29/pg%E7%B3%BB%E7%BB%9F%E8%A1%A8/" target="_self">
+                <span>PostgreSQL系统表</span>
+                <i class="iconfont icon-chevronright"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8CVM%E6%90%AD%E5%BB%BA-PostgreSQL-%E4%B8%BB%E4%BB%8E%E6%9E%B6%E6%9E%84"><span class="toc-text">使用CVM搭建 PostgreSQL 主从架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%BD%AF%E4%BB%B6%E7%89%88%E6%9C%AC"><span class="toc-text">软件版本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E6%8F%90%E6%9D%A1%E4%BB%B6"><span class="toc-text">前提条件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%93%8D%E4%BD%9C%E6%AD%A5%E9%AA%A4"><span class="toc-text">操作步骤</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81%E9%85%8D%E7%BD%AE%E4%B8%BB%E8%8A%82%E7%82%B9"><span class="toc-text">1、配置主节点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81%E9%85%8D%E7%BD%AE%E4%BB%8E%E8%8A%82%E7%82%B9"><span class="toc-text">2、配置从节点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81%E9%AA%8C%E8%AF%81%E9%83%A8%E7%BD%B2"><span class="toc-text">3、验证部署</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+      <div class="comments-container">
+        
+
+
+
+
+  
+    <script async type="text/javascript" src='/js/valine.js' onload="loadValineSuc(this)"></script>
+  
+
+  <div id="vcomments"></div>
+
+  <script>
+    function loadValineSuc() {
+      new Valine({
+        el: '#vcomments',
+        appId: '89WggGTU4RJJMUPC5HVpfSsS-gzGzoHsz',
+        appKey: 'vv2kKVwLzl0fRkVT3vqA1Gtx',
+        placeholder: '欢迎留言，您的评论将被显示在下方！',
+        avatar: 'monsterid',
+        lang: 'zh-CN'
+      })
+    }
+  </script>
+
+    <style>
+      .comments-container .v .vempty {
+        display: none!important;
+      }
+    </style>
+
+
+
+
+      </div>
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+      
+        <li>
+          
+              <a title="github" target="_blank" rel="noopener" href="https://github.com/wuchuboy">
+                <i class="iconfont icon-github"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+            <a title="email" href="mailto:">
+              <i class="iconfont icon-envelope"></i>
+            </a>
+            
+        </li>
+        
+        <li>
+          
+              <a title="wechat" href="">
+                <i class="iconfont icon-wechat"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+              <a title="weibo" href="">
+                <i class="iconfont icon-weibo"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+              <a title="rss" href="/atom.xml">
+                <i class="iconfont icon-rss"></i>
+              </a>
+              
+        </li>
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/wuchuboy">Copyright © 2024 梧杵</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/wuchuboy">Theme by Oranges | Powered by WuChu</a>
+        
+    </div>
+  
+  
+    <div class="footer-views">
+      
+          本站总访问量<span id="busuanzi_value_site_pv"></span>次
+        
+      
+          本文总阅读量<span id="busuanzi_value_page_pv"></span>次
+        
+      
+          本站访客数<span id="busuanzi_value_site_uv"></span>人
+        
+      
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+  
+<script src="/js/colorscheme.js"></script>
+
+
+
+
+
+        
+  
+    <div class="share-icon tools-bar-item">
+      <a href="javascript: void(0)" id="share-icon">
+        <i class="iconfont iconshare"></i>
+      </a>
+      <div class="share-content hidden">
+        
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + %E4%BD%BF%E7%94%A8CVM%E6%90%AD%E5%BB%BAPostgreSQL%E4%B8%BB%E4%BB%8E%E6%9E%B6%E6%9E%84 + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F10%2F29%2F%25E4%25BD%25BF%25E7%2594%25A8CVM%25E6%2590%25AD%25E5%25BB%25BA%2520PostgreSQL%2520%25E4%25B8%25BB%25E4%25BB%258E%25E6%259E%25B6%25E6%259E%2584%2F + '" target="_blank" title="Twitter">
+            <i class="iconfont icon-twitter"></i>
+          </a>
+        
+        
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/10/29/%E4%BD%BF%E7%94%A8CVM%E6%90%AD%E5%BB%BA%20PostgreSQL%20%E4%B8%BB%E4%BB%8E%E6%9E%B6%E6%9E%84/" target="_blank" title="Facebook">
+            <i class="iconfont icon-facebooksquare"></i>
+          </a>
+        
+      </div>
+    </div>
+  
+  
+<script src="/js/shares.js"></script>
+
+
+
+      </div>
+    </div>
+  </body>
+</html>

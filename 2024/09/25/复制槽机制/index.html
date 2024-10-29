@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="吴楚" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="练习两年半的PG小学生" />
+  
+  
+  
+  <title>
+    
+     梧杵
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/rab.svg">
+    <link rel="icon" href="/images/rab.svg">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="/plugins/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+  
+    <link href="/plugins/jquery.fancybox.min.css" rel="stylesheet">
+    <script defer type="text/javascript" src="/plugins/jquery.fancybox.min.js"></script>
+  
+  
+<script src="/js/fancybox.js"></script>
+
+
+  
+
+  
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+<meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="梧杵" type="application/atom+xml">
+</head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img src="/images/rab.svg" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">梧杵</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">记录</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">随笔</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/tags/">
+          <a href="/tags/">标签</a>
+        </li>
+      
+        <li class="nav-item" data-path="/friends/">
+          <a href="/friends/">朋友</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+<script src="/js/activeNav.js"></script>
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="/plugins/mathjax/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="/plugins/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title"></div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2024-10-29 19:12:56
+        </span>
+        
+      </div>
+      <div class="markdown-body">
+        <h3 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h3><p>在主从复制的过程中，如果连接突然断开，主库中有些WAL日志文件还没有被从库备份就被删除了，导致备份的数据丢失。</p>
+<h3 id="2、复制槽"><a href="#2、复制槽" class="headerlink" title="2、复制槽"></a>2、复制槽</h3><ul>
+<li><p>复制槽提供了一种办法确保主库不会“删除”还未发送到备库的WAL日志，也不会删除备库需要的多版本，即使备库掉线。</p>
+</li>
+<li><p>replication slot能够确保在主备断连后主库的wal仍不被清理，因为replication slot的状态信息是持久化保存的，即便从库断掉或主库重启，这些信息仍然不会丢掉或失效。</p>
+</li>
+<li><p>replication slots 是从postgresql 9.4引入的，主要是提供了一种自动化的方法来确保主库在所有的备库收到wal之前不会移除它们，并且主库也不会移除可能导致恢复冲突的行(需要配合hot_standby_feedback)，即使备库断开也是如此。</p>
+</li>
+<li><p>在没有启用replication slots的环境中，如果碰到 ERROR: requested WAL segment xxxx has already been removed 的错误，解决办法是要么提前开启了归档，要么重做slave，另外还可以在主库上设置wal_keep_segments 为更大的值。当然，如果备库停机时间太长，可能主库的WAL日志目录会被撑满，如果设置了复制槽，建议将WAL日志目录放在大容量硬盘上。</p>
+</li>
+<li><p>PG 复制槽用于记录主备流复制的状态，主要目的是防止 wal 日志被过早的删除，导致备库流复制中断。复制槽是有状态的，能够持久化到磁盘上，允许宕机、重启场景下进行恢复。在有复制槽的场景下，即使备库关闭很长时间，主库也会为其保留足够的 wal 日志，直到备库恢复接收完这些 wal 日志，主库才会将其删除。当然这也带来了新的问题，即如果备库永远不恢复，那么主库的 wal 日志就会永远保留，导致磁盘空间耗尽，这时需要人工介入处理。</p>
+</li>
+</ul>
+<h3 id="3、创建复制槽的方式"><a href="#3、创建复制槽的方式" class="headerlink" title="3、创建复制槽的方式"></a>3、创建复制槽的方式</h3><ul>
+<li>在主库上执行下述SQL语句：<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> pg_create_physical_replication_slot(<span class="string">&#x27;slot_s1&#x27;</span>);</span><br></pre></td></tr></table></figure></li>
+<li>备库使用 pg_basebackup 创建备份时指定参数 -C -S 来创建复制槽<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">pg_basebackup <span class="operator">-</span>h <span class="operator">*</span>.<span class="operator">*</span>.<span class="operator">*</span>.<span class="operator">*</span> <span class="operator">-</span>p <span class="number">5432</span> <span class="operator">-</span>R <span class="operator">-</span>C <span class="operator">-</span>S slot_s1 <span class="operator">-</span>D <span class="operator">/</span>data<span class="operator">/</span>pg<span class="operator">/</span></span><br><span class="line"><span class="operator">-</span>R 表示写复制相关的配置文件，指定了 <span class="operator">-</span>R 参数，启动备库自动创建流复制</span><br><span class="line"><span class="operator">-</span>C 表示自动在主库创建复制槽，复制槽名称为 <span class="operator">-</span>S 指定，<span class="operator">-</span>C 必须与 <span class="operator">-</span>S 同时使用</span><br><span class="line"><span class="operator">-</span>S slot_s1 参数指定复制槽名称，备份完成后会自动在 postgresql.auto.conf 文件里加上参数 primary_slot_name <span class="operator">=</span> <span class="string">&#x27;slot_s1&#x27;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="4、启动备库并在主库上查看复制槽信息"><a href="#4、启动备库并在主库上查看复制槽信息" class="headerlink" title="4、启动备库并在主库上查看复制槽信息"></a>4、启动备库并在主库上查看复制槽信息</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> pg_replication_slots;</span><br><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> pg_stat_replication;</span><br></pre></td></tr></table></figure>
+<h3 id="5、为什么复制槽可以阻止wal日志被删除？"><a href="#5、为什么复制槽可以阻止wal日志被删除？" class="headerlink" title="5、为什么复制槽可以阻止wal日志被删除？"></a>5、为什么复制槽可以阻止wal日志被删除？</h3><p>ReplicationSlotsComputeRequiredLSN() 函数遍历所有复制槽，获取最小的 restart_lsn，将该值赋值给 XLogCtl-&gt;replicationSlotMinLSN。wal 日志的清除主要在 checkpoint 操作时进行，在创建 checkpoint 时，会调用 KeepLogSeg() 函数，依赖 XLogCtl-&gt;replicationSlotMinLSN 保留 wal 日志文件。<br>此外，ReplicationSlotsComputeRequiredXmin() 函数遍历所有复制槽，获取最小的 effective_xmin 和 effective_catalog_xmin，然后分别将其赋值给如下两个变量，这两个变量在事务快照等场景下会使用。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">procArray-&gt;replication_slot_xmin</span><br><span class="line">procArray-&gt;replication_slot_catalog_xmin</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-PG-复制槽相关参数"><a href="#6-PG-复制槽相关参数" class="headerlink" title="6. PG 复制槽相关参数"></a>6. PG 复制槽相关参数</h3><ul>
+<li>max_replication_slots，最大的复制槽数量，取值范围为 0 ~ 0x3FFFF，默认值为 10， 设置为 0 表示禁用复制槽。</li>
+<li>wal_level &gt;&#x3D; replica</li>
+</ul>
+<h3 id="7-复制槽共享内存初始化"><a href="#7-复制槽共享内存初始化" class="headerlink" title="7. 复制槽共享内存初始化"></a>7. 复制槽共享内存初始化</h3><p>复制槽相关的数据结构存储在共享内存中，大小由 max_replication_slots 参数决定，每个复制槽由结构体 ReplicationSlot 表示，其成员变量 in_use 表示该复制槽元素是否正在被使用。</p>
+<ul>
+<li>ReplicationSlotsShmemSize()，计算复制槽共享内存大小</li>
+<li>ReplicationSlotsShmemInit()，初始化共享内存</li>
+</ul>
+<h3 id="8-PG-复制槽的实现逻辑"><a href="#8-PG-复制槽的实现逻辑" class="headerlink" title="8. PG 复制槽的实现逻辑"></a>8. PG 复制槽的实现逻辑</h3><h4 id="8-1-创建复制槽"><a href="#8-1-创建复制槽" class="headerlink" title="8.1 创建复制槽"></a>8.1 创建复制槽</h4><p>创建复制槽的函数调用关系：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">pg_create_physical_replication_slot</span>()</span><br><span class="line">    <span class="built_in">create_physical_replication_slot</span>()</span><br><span class="line">        <span class="built_in">ReplicationSlotCreate</span>()</span><br></pre></td></tr></table></figure>
+<p>ReplicationSlotCreate() 函数实现了创建复制槽的功能，主要入参是复制槽名称，函数内部调用 ReplicationSlotValidateName() 函数对复制槽名称进行合法性检查。遍历共享内存中的 ReplicationSlot 数组，找到一个 in_use 为 0 的元素，对该元素的各成员进行初始化。遍历 ReplicationSlot 数组时，也会对复制槽名称是否出现同名进行检查，如果已有相同名称的复制槽则报错。最后调用 CreateSlotOnDisk() 函数，将复制槽的数据写入数据目录下的文件中，路径为 pg_replslot&#x2F;$slot_name&#x2F;state，文件内容为 ReplicationSlotOnDisk 结构体。</p>
+<h4 id="8-2-启动复制槽"><a href="#8-2-启动复制槽" class="headerlink" title="8.2 启动复制槽"></a>8.2 启动复制槽</h4><p>在主库创建的复制槽需要在主备流复制启动后才能使用，备库发送 start replication 时可以指定复制槽名称来启动复制槽，函数调用</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">PostgresMain</span>()</span><br><span class="line">    <span class="built_in">exec_replication_command</span>()</span><br><span class="line">        <span class="built_in">StartReplication</span>()</span><br><span class="line">            <span class="built_in">WalSndLoop</span>()</span><br></pre></td></tr></table></figure>
+<h3 id="9-导出函数和视图"><a href="#9-导出函数和视图" class="headerlink" title="9. 导出函数和视图"></a>9. 导出函数和视图</h3><p>slotfuncs.c 源文件中定义了一些导出函数和视图给用户调用，用于操作复制槽。<br>函数： pg_create_physical_replication_slot() pg_create_logical_replication_slot() pg_drop_replication_slot() pg_get_replication_slots() pg_replication_slot_advance()<br>视图： pg_replication_slots</p>
+<h3 id="10-复制槽相关问题"><a href="#10-复制槽相关问题" class="headerlink" title="10. 复制槽相关问题"></a>10. 复制槽相关问题</h3><h4 id="10-1-复制槽-dirty-表示什么？"><a href="#10-1-复制槽-dirty-表示什么？" class="headerlink" title="10.1 复制槽 dirty 表示什么？"></a>10.1 复制槽 dirty 表示什么？</h4><p>MyReplicationSlot-&gt;just_dirtied &#x3D; true; MyReplicationSlot-&gt;dirty &#x3D; true;<br>复制槽数据在共享内存与磁盘上都会进行存储，当共享内存中的数据发生变化，则会将 MyReplicationSlot-&gt;dirty 标记为 true，刷盘后标记为 false。相关代码可参见 ReplicationSlotPersist() 函数。</p>
+<h4 id="10-2-为什么复制槽能够阻止-wal-日志被清除？"><a href="#10-2-为什么复制槽能够阻止-wal-日志被清除？" class="headerlink" title="10.2 为什么复制槽能够阻止 wal 日志被清除？"></a>10.2 为什么复制槽能够阻止 wal 日志被清除？</h4><p>ReplicationSlotsComputeRequiredLSN() 函数遍历所有复制槽，获取最小的 restart_lsn，将该值赋值给 XLogCtl-&gt;replicationSlotMinLSN。wal 日志的清除主要在 checkpoint 操作时进行，在创建 checkpoint 时，会调用 KeepLogSeg() 函数，依赖 XLogCtl-&gt;replicationSlotMinLSN 保留 wal 日志文件。<br>此外，ReplicationSlotsComputeRequiredXmin() 函数遍历所有复制槽，获取最小的 effective_xmin 和 effective_catalog_xmin，然后分别将其赋值给如下两个变量，这两个变量在事务快照等场景下会使用。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">procArray-&gt;replication_slot_xmin</span><br><span class="line">procArray-&gt;replication_slot_catalog_xmin</span><br></pre></td></tr></table></figure>
+<h4 id="10-3-逻辑复制槽与物理复制槽的区别"><a href="#10-3-逻辑复制槽与物理复制槽的区别" class="headerlink" title="10.3 逻辑复制槽与物理复制槽的区别"></a>10.3 逻辑复制槽与物理复制槽的区别</h4><p>逻辑复制槽与物理复制槽在源码上的区别是 slot-&gt;data.database 是不是为 0 。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define SlotIsPhysical(slot) ((slot)-&gt;data.database == InvalidOid)</span><br><span class="line">#define SlotIsLogical(slot) ((slot)-&gt;data.database != InvalidOid)</span><br></pre></td></tr></table></figure>
+<h4 id="10-4-复制槽的-xid-和-lsn-如何更新？"><a href="#10-4-复制槽的-xid-和-lsn-如何更新？" class="headerlink" title="10.4 复制槽的 xid 和 lsn 如何更新？"></a>10.4 复制槽的 xid 和 lsn 如何更新？</h4><p>在 wal sender 进程中接收备库发出的回馈信息，包含 feedbackXmin 和 feedbackCatalogXmin，这些信息被存储在 slot 的成员变量中，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">slot-&gt;data.xmin = feedbackXmin;</span><br><span class="line">slot-&gt;effective_xmin = feedbackXmin;</span><br><span class="line">slot-&gt;data.catalog_xmin = feedbackCatalogXmin;</span><br><span class="line">slot-&gt;effective_catalog_xmin = feedbackCatalogXmin;</span><br></pre></td></tr></table></figure>
+<p>函数调用关系如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">WalSndLoop()</span><br><span class="line">    ProcessRepliesIfAny()</span><br><span class="line">        ProcessStandbyMessage()</span><br><span class="line">            ProcessStandbyHSFeedbackMessage()</span><br><span class="line">                PhysicalReplicationSlotNewXmin()</span><br></pre></td></tr></table></figure>
+<p>lsn 的更新与逻辑复制有关，wal sender 进程在逻辑解码时，更新相关的 lsn，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">slot-&gt;candidate_catalog_xmin = xmin;</span><br><span class="line">slot-&gt;candidate_xmin_lsn = current_lsn;</span><br><span class="line">slot-&gt;candidate_restart_valid = current_lsn;</span><br><span class="line">slot-&gt;candidate_restart_lsn = restart_lsn;</span><br></pre></td></tr></table></figure>
+<p>函数调用关系如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">WalSndLoop()</span><br><span class="line">    XLogSendLogical()</span><br><span class="line">        LogicalDecodingProcessRecord()</span><br><span class="line">            DecodeStandbyOp()</span><br><span class="line">                SnapBuildProcessRunningXacts()</span><br><span class="line">                    LogicalIncreaseXminForSlot()</span><br><span class="line">                    LogicalIncreaseRestartDecodingForSlot()</span><br></pre></td></tr></table></figure>
+      </div>
+      
+        <div class="prev-or-next">
+          <div class="post-foot-next">
+            
+              <a href="/2024/08/13/redux/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>Redux的基本原理</span>
+              </a>
+            
+          </div>
+          <div class="post-attach">
+            <span class="post-pubtime">
+              <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+              2024-10-29 19:12:56
+            </span>
+            
+          </div>
+          <div class="post-foot-prev">
+            
+              <a href="/2024/10/28/xid_deal/" target="_self">
+                <span>XID用的太多怎么办</span>
+                <i class="iconfont icon-chevronright"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81%E8%83%8C%E6%99%AF"><span class="toc-text">1、背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81%E5%A4%8D%E5%88%B6%E6%A7%BD"><span class="toc-text">2、复制槽</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81%E5%88%9B%E5%BB%BA%E5%A4%8D%E5%88%B6%E6%A7%BD%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="toc-text">3、创建复制槽的方式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4%E3%80%81%E5%90%AF%E5%8A%A8%E5%A4%87%E5%BA%93%E5%B9%B6%E5%9C%A8%E4%B8%BB%E5%BA%93%E4%B8%8A%E6%9F%A5%E7%9C%8B%E5%A4%8D%E5%88%B6%E6%A7%BD%E4%BF%A1%E6%81%AF"><span class="toc-text">4、启动备库并在主库上查看复制槽信息</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A4%8D%E5%88%B6%E6%A7%BD%E5%8F%AF%E4%BB%A5%E9%98%BB%E6%AD%A2wal%E6%97%A5%E5%BF%97%E8%A2%AB%E5%88%A0%E9%99%A4%EF%BC%9F"><span class="toc-text">5、为什么复制槽可以阻止wal日志被删除？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-PG-%E5%A4%8D%E5%88%B6%E6%A7%BD%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0"><span class="toc-text">6. PG 复制槽相关参数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-%E5%A4%8D%E5%88%B6%E6%A7%BD%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">7. 复制槽共享内存初始化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-PG-%E5%A4%8D%E5%88%B6%E6%A7%BD%E7%9A%84%E5%AE%9E%E7%8E%B0%E9%80%BB%E8%BE%91"><span class="toc-text">8. PG 复制槽的实现逻辑</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#8-1-%E5%88%9B%E5%BB%BA%E5%A4%8D%E5%88%B6%E6%A7%BD"><span class="toc-text">8.1 创建复制槽</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#8-2-%E5%90%AF%E5%8A%A8%E5%A4%8D%E5%88%B6%E6%A7%BD"><span class="toc-text">8.2 启动复制槽</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-%E5%AF%BC%E5%87%BA%E5%87%BD%E6%95%B0%E5%92%8C%E8%A7%86%E5%9B%BE"><span class="toc-text">9. 导出函数和视图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-%E5%A4%8D%E5%88%B6%E6%A7%BD%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98"><span class="toc-text">10. 复制槽相关问题</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#10-1-%E5%A4%8D%E5%88%B6%E6%A7%BD-dirty-%E8%A1%A8%E7%A4%BA%E4%BB%80%E4%B9%88%EF%BC%9F"><span class="toc-text">10.1 复制槽 dirty 表示什么？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#10-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A4%8D%E5%88%B6%E6%A7%BD%E8%83%BD%E5%A4%9F%E9%98%BB%E6%AD%A2-wal-%E6%97%A5%E5%BF%97%E8%A2%AB%E6%B8%85%E9%99%A4%EF%BC%9F"><span class="toc-text">10.2 为什么复制槽能够阻止 wal 日志被清除？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#10-3-%E9%80%BB%E8%BE%91%E5%A4%8D%E5%88%B6%E6%A7%BD%E4%B8%8E%E7%89%A9%E7%90%86%E5%A4%8D%E5%88%B6%E6%A7%BD%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-text">10.3 逻辑复制槽与物理复制槽的区别</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#10-4-%E5%A4%8D%E5%88%B6%E6%A7%BD%E7%9A%84-xid-%E5%92%8C-lsn-%E5%A6%82%E4%BD%95%E6%9B%B4%E6%96%B0%EF%BC%9F"><span class="toc-text">10.4 复制槽的 xid 和 lsn 如何更新？</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+      <div class="comments-container">
+        
+
+
+
+
+  
+    <script async type="text/javascript" src='/js/valine.js' onload="loadValineSuc(this)"></script>
+  
+
+  <div id="vcomments"></div>
+
+  <script>
+    function loadValineSuc() {
+      new Valine({
+        el: '#vcomments',
+        appId: '89WggGTU4RJJMUPC5HVpfSsS-gzGzoHsz',
+        appKey: 'vv2kKVwLzl0fRkVT3vqA1Gtx',
+        placeholder: '欢迎留言，您的评论将被显示在下方！',
+        avatar: 'monsterid',
+        lang: 'zh-CN'
+      })
+    }
+  </script>
+
+    <style>
+      .comments-container .v .vempty {
+        display: none!important;
+      }
+    </style>
+
+
+
+
+      </div>
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+      
+        <li>
+          
+              <a title="github" target="_blank" rel="noopener" href="https://github.com/wuchuboy">
+                <i class="iconfont icon-github"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+            <a title="email" href="mailto:">
+              <i class="iconfont icon-envelope"></i>
+            </a>
+            
+        </li>
+        
+        <li>
+          
+              <a title="wechat" href="">
+                <i class="iconfont icon-wechat"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+              <a title="weibo" href="">
+                <i class="iconfont icon-weibo"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+              <a title="rss" href="/atom.xml">
+                <i class="iconfont icon-rss"></i>
+              </a>
+              
+        </li>
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/wuchuboy">Copyright © 2024 梧杵</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/wuchuboy">Theme by Oranges | Powered by WuChu</a>
+        
+    </div>
+  
+  
+    <div class="footer-views">
+      
+          本站总访问量<span id="busuanzi_value_site_pv"></span>次
+        
+      
+          本文总阅读量<span id="busuanzi_value_page_pv"></span>次
+        
+      
+          本站访客数<span id="busuanzi_value_site_uv"></span>人
+        
+      
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+  
+<script src="/js/colorscheme.js"></script>
+
+
+
+
+
+        
+  
+    <div class="share-icon tools-bar-item">
+      <a href="javascript: void(0)" id="share-icon">
+        <i class="iconfont iconshare"></i>
+      </a>
+      <div class="share-content hidden">
+        
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' +  + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F09%2F25%2F%25E5%25A4%258D%25E5%2588%25B6%25E6%25A7%25BD%25E6%259C%25BA%25E5%2588%25B6%2F + '" target="_blank" title="Twitter">
+            <i class="iconfont icon-twitter"></i>
+          </a>
+        
+        
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/09/25/%E5%A4%8D%E5%88%B6%E6%A7%BD%E6%9C%BA%E5%88%B6/" target="_blank" title="Facebook">
+            <i class="iconfont icon-facebooksquare"></i>
+          </a>
+        
+      </div>
+    </div>
+  
+  
+<script src="/js/shares.js"></script>
+
+
+
+      </div>
+    </div>
+  </body>
+</html>

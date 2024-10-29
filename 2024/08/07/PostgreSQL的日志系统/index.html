@@ -15,7 +15,7 @@
   
   <title>
     
-      Postgresql中元组的隐藏字段与MVCC 
+      Postgresql的日志系统 
       
       
       |
@@ -166,11 +166,11 @@
   <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
   <div class="container post-details" id="post-details">
     <div class="post-content">
-      <div class="post-title">Postgresql中元组的隐藏字段与MVCC</div>
+      <div class="post-title">Postgresql的日志系统</div>
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-          2024-10-29 19:09:13
+          2024-10-29 19:17:28
         </span>
         
               <span class="post-categories">
@@ -188,8 +188,8 @@
                 <i class="iconfont icon-tags mr-10" title="标签"></i>
                 
                 <span class="span--tag mr-8">
-                  <a href="/tags/MVCC/" title="MVCC">
-                    #MVCC
+                  <a href="/tags/%E6%97%A5%E5%BF%97/" title="日志">
+                    #日志
                   </a>
                 </span>
                 
@@ -197,142 +197,58 @@
           
       </div>
       <div class="markdown-body">
-        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。</p>
-<h3 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h3><p>安装的pg版本为<code>11</code>，每个元组的头部信息在<code>HeapTupleHeaderData</code>中定义：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">HeapTupleHeaderData</span></span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">union</span></span><br><span class="line">	&#123;</span><br><span class="line">		HeapTupleFields t_heap; <span class="comment">//存放元组描述信息</span></span><br><span class="line">		DatumTupleFields t_datum;</span><br><span class="line">	&#125;			t_choice;</span><br><span class="line"></span><br><span class="line">	ItemPointerData t_ctid;		<span class="comment">/*元组的存放位置，一般值为“（blockid,itemid）”  */</span></span><br><span class="line">	uint16		t_infomask2;	<span class="comment">/* 属性和标识位 */</span></span><br><span class="line">	uint16		t_infomask;		<span class="comment">/* 其他标识位 */</span></span><br><span class="line">	uint8		t_hoff;			<span class="comment">/* 首部+位图+填充的长度 */</span></span><br><span class="line">	bits8		t_bits[<span class="number">1</span>];	<span class="comment">/* bitmap of NULLs */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>HeapTupleHeaderData中的<code>t_heap</code>存储着元组的一些描述信息，结构如下：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">HeapTupleFields</span></span><br><span class="line">&#123;</span><br><span class="line">TransactionId t_xmin;   <span class="comment">/* 插入或修改事务的ID */</span></span><br><span class="line">TransactionId t_xmax;   <span class="comment">/* 删除或者锁定事务的ID */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">union</span></span><br><span class="line">&#123;</span><br><span class="line">   CommandId t_cid;   <span class="comment">/* 插入或者删除的命令ID */</span></span><br><span class="line">   TransactionId t_xvac; <span class="comment">/* 执行vacuum full的事务ID */</span></span><br><span class="line">&#125;    t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure>
-
-<p>经过分析源码，发现核心的隐藏字段有：<strong>t_ctid、t_xmin、t_xmax、t_cid</strong></p>
-<p>执行命令：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> attname, attnum, attisdropped, attlen, attalign, attnotnull</span><br><span class="line"><span class="keyword">FROM</span> pg_catalog.pg_attribute <span class="keyword">WHERE</span> attrelid <span class="operator">=</span> <span class="string">&#x27;test&#x27;</span>::regclass</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> attnum;</span><br></pre></td></tr></table></figure>
-
-<p>发现实际表的隐藏字段如下所示：</p>
-<img src="/2024/08/07/mvcc/image.png" class="" title="图一">
-
-<p>所以说源码中的字段跟实际隐藏字段的name有区别，对应关系：</p>
-<table>
-<thead>
-<tr>
-<th>源码字段</th>
-<th>实际隐藏字段</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>t_ctid</td>
-<td>ctid</td>
-</tr>
-<tr>
-<td>t_xmin</td>
-<td>xmin</td>
-</tr>
-<tr>
-<td>t_xmax</td>
-<td>xmax</td>
-</tr>
-<tr>
-<td>t_cid</td>
-<td>cmax、cmin</td>
-</tr>
-</tbody></table>
-<h3 id="隐藏字段详细分析"><a href="#隐藏字段详细分析" class="headerlink" title="隐藏字段详细分析"></a>隐藏字段详细分析</h3><h5 id="t-ctid"><a href="#t-ctid" class="headerlink" title="t_ctid"></a>t_ctid</h5><img src="/2024/08/07/mvcc/image.2.png" class="" title="图2️"> 
-
-<img src="/2024/08/07/mvcc/image.4.png" class="" title="图3">
-
-<p>对应实际字段中的ctid，表示数据记录的物理行当信息，指的是一条记录位于哪个数据块的哪个位移上面。<br>格式<code>(blockid,itemid)</code>：拿上图其中的(0,1)来说；0表示块id；1表示在这块第一条记录。</p>
-<ul>
-<li><p><strong>当执行insert操作时，ctid的变化如下：</strong></p>
-<img src="/2024/08/07/mvcc/image.5.png" class="" title="图4">
-
-<img src="/2024/08/07/mvcc/image.6.png" class="" title="图5">
-
-<p>看出来是顺序累加。</p>
-</li>
-<li><p><strong>当执行更新操作时，ctid的变化：</strong></p>
-<img src="/2024/08/07/mvcc/image.7.png" class="" title="图6">
-
-<img src="/2024/08/07/mvcc/image.8.png" class="" title="图7">
-
-<img src="/2024/08/07/mvcc/image.11.png" class="" title="图8">
-
-<p>更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</p>
-<img src="/2024/08/07/mvcc/image.9.png" class="" title="图9"></li>
-</ul>
-<blockquote>
-<p><strong>发现并不会在（0，2）位置上插入新数据？</strong><br><strong>分析：</strong>新插入的数据通常不会立即填充刚刚清理的空间，而是优先使用表末尾的空闲空间，这涉及到数据库的存储管理和性能优化策略。减少碎片化：优先使用表末尾的空闲空间可以减少数据文件的碎片化，提高查询性能。提高插入性能：插入新数据到表末尾的空闲空间比在表中间找到一个合适的空闲位置更高效。</p>
-</blockquote>
-<h5 id="t-xmin"><a href="#t-xmin" class="headerlink" title="t_xmin"></a>t_xmin</h5><p>存储的是产生这个元组的事务ID，可能是insert或者update语句</p>
-<img src="/2024/08/07/mvcc/image.12.png" class="" title="图10">
-
-<h5 id="t-xmax"><a href="#t-xmax" class="headerlink" title="t_xmax"></a>t_xmax</h5><p>存储的是删除或者锁定这个元组的事务ID</p>
-<h5 id="t-cid"><a href="#t-cid" class="headerlink" title="t_cid"></a>t_cid</h5><p>包含cmin和cmax两个字段，分别存储创建这个元组的Command ID和删除这个元组的Command ID。在事务执行期间，会给改期间执行的所以命令设置一个唯一ID，也就是Command ID。</p>
-<h3 id="MVCC的可见性判断"><a href="#MVCC的可见性判断" class="headerlink" title="MVCC的可见性判断"></a>MVCC的可见性判断</h3><p>MVCC 可见性判断主要就是将元组的 xmin、xmax、cmin、cmax 以及 t_infomask 信息结合快照 snapshot 以及 CLOG 中的信息，根据可见性判断规则，决定一个元组是否可见。<br>可见性判断主要分为两个部分：</p>
-<ul>
-<li>对元组的 xmin 进行可见性判断，即 insert 该元组的事务是否已提交，是否可见。</li>
-<li>对元组的 xmax 进行可见性判断，即该元组是否已被 update 或者 delete。</li>
-</ul>
-<p>为了简化逻辑，去除了一些兼容相关的干扰以及很少走到的一些代码路径。以下是关于元组 xmin 的判断规则：</p>
-<p>1.如果元组 xmin 未提交，判断条件为：!(t_infomask &amp; HEAP_XMIN_COMMITTED)</p>
-<p>1.1 如果元组的 xmin 无效，即 HeapTupleHeaderXminInvalid(tuple)，返回不可见</p>
-<p>1.2 如果元组的 xmin 在当前事务（包含子事务）中</p>
-<ul>
-<li>1.2.1 如果元组的 cmin 大于等于 快照的 commandId，返回不可见</li>
-<li>1.2.2 如果元组的 t_infomask 包含 HEAP_XMAX_INVALID 标记，即 xmax 无效，返回可见</li>
-<li>1.2.3 如果元组的 t_infomask 仅包含 HEAP_XMAX_EXCL_LOCK，返回可见</li>
-<li>1.2.4 如果元组的 xmax 不在当前事务中，设置标记 HEAP_XMAX_INVALID，返回可见</li>
-<li>1.2.5 如果元组的 cmax 大于等于快照的 commandId，返回可见，否则返回不可见</li>
-</ul>
-<p>1.3 如果元组的 xmin 在快照的活跃事务列表中，返回不可见</p>
-<p>1.4 如果元组的 xmin 在 clog 中已提交，设置标记 HEAP_XMIN_COMMITTED</p>
-<p>1.5 设置标记 HEAP_XMIN_INVALID，返回不可见</p>
-<p>2.如果元组的 xmin 已提交</p>
-<p>2.1 如果元组的 xmin 未冻结并且 xmin 在快照活跃事务列表中，返回不可见</p>
-<p><strong>到此说明元组的 xmin 已提交，即 insert 已提交，是否可见还得看 xmax，下面是关于 xmax 的判断规则</strong></p>
-<p>3.t_infomask 标记包含 HEAP_XMAX_INVALID，返回可见</p>
-<p>4.t_infomask 标记满足 HEAP_XMAX_IS_LOCKED_ONLY，返回可见</p>
-<p>5.如果 t_infomask 不包含 HEAP_XMAX_COMMITTED</p>
-<p>5.1 如果 xmax 在当前事务中</p>
-<ul>
-<li>5.1.1 cmax 大于等于快照的cid，返回可见</li>
-<li>5.1.2 cmax 小于快照的 cid，返回不可见</li>
-</ul>
-<p>5.2 如果 xmax 在快照的活跃事务列表中，返回可见</p>
-<p>5.3 如果 xmax 在 clog 中没有提交，设置标记 HEAP_XMAX_INVALID，返回可见</p>
-<p>5.4 设置标记 HEAP_XMAX_COMMITTED</p>
-<p>6.t_infomask 包含 HEAP_XMAX_COMMITTED</p>
-<p>6.1 如果 xmax 在快照的活跃事务列表中，返回可见</p>
-<p>除了以上描述的情况外，其他的都返回不可见</p>
-<p>7.其他都是返回不可见</p>
-<p>以上分析可以看出 MVCC 可见性判断的规则还是比较复杂的，考虑了很多场景，规则之间还有先后顺序依赖。总结可见性规则影响因素如下：</p>
-<ul>
-<li>xmin 是否已提交，是否有效</li>
-<li>xmin 是否在当前会话的事务中</li>
-<li>xmin 是否在快照活跃事务列表中</li>
-<li>xmin 在 clog 中的状态</li>
-<li>cmin 与 快照 cid 的大小比较</li>
-<li>xmax 是否已提交，是否有效</li>
-<li>xmax 是否在当前会话的事务中</li>
-<li>xmax 是否在快照活跃事务列表中</li>
-<li>xmax 在 clog 中的状态</li>
-<li>cmax 与快照 cid 的大小比较</li>
-</ul>
-<p>关于可见性分析，有两点需要注意：</p>
-<ol>
-<li>即使是 select 查询，也可能会写 wal 日志，比如设置 HEAP_XMIN_COMMITTED 这个操作就会涉及写 wal 日志。</li>
-<li>此外即使 insert 事务已提交，已经写入 CLOG，但是该事务的事务号还没有从活跃事务列表中删除，那么元组仍然是不可见的。</li>
+        <h3 id="1、postgresql日志类型"><a href="#1、postgresql日志类型" class="headerlink" title="1、postgresql日志类型"></a>1、postgresql日志类型</h3><ol>
+<li><strong>pg_log –&gt; log：</strong>数据库运行日志，如各种error信息，慢查询，服务器与DB的状态信息等，默认关闭，可以通过参数自定义存储位置，格式等</li>
+<li><strong>pg_xlog –&gt; pg_wal：</strong>WAL日志，即重做日志，默认大小16MB，强制打开</li>
+<li><strong>pg_clog –&gt; pg_xact：</strong>事务提交日志，记录事务的元数据，强制打开</li>
 </ol>
+<blockquote>
+<p>在10.0版本开始，pg_xlog目录被重新命名为pg_wal，pg_clog目录被重命名为pg_xact,pg_log目录被重命名为log</p>
+</blockquote>
+<h3 id="2、pg-log的开启，修改postgresql-conf相关配置"><a href="#2、pg-log的开启，修改postgresql-conf相关配置" class="headerlink" title="2、pg_log的开启，修改postgresql.conf相关配置"></a>2、pg_log的开启，修改postgresql.conf相关配置</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">##开启日志记录</span><br><span class="line">logging_collector = on</span><br><span class="line"></span><br><span class="line">##stderr,csvlog,syslog,and eventlog，默认stderr</span><br><span class="line">log_destination = &#x27;stderr&#x27;</span><br><span class="line"></span><br><span class="line">##日志保存路径</span><br><span class="line">log_directory = &#x27;/data/pg_data/log/&#x27;</span><br><span class="line"></span><br><span class="line">##日志文件格式</span><br><span class="line">log_filename = &#x27;postgresql-%Y-%m-%d_%H%M%S.log&#x27;</span><br><span class="line"></span><br><span class="line">##日志文件权限</span><br><span class="line">log_file_mode = 0600</span><br><span class="line"></span><br><span class="line">##是否开启通过日志覆盖模式</span><br><span class="line">log_truncate_on_rotation = off</span><br><span class="line"></span><br><span class="line">##日志输出格式</span><br><span class="line">log_line_prefix = &#x27;%t:%r:%u@%d:[%p]:&#x27;</span><br><span class="line"></span><br><span class="line">##none, ddl, mod, all，需要记录的类型</span><br><span class="line">log_statement = &#x27;ddl&#x27;</span><br></pre></td></tr></table></figure>
+<h3 id="3、WAL日志LSN（log-sequence-number）编号规则"><a href="#3、WAL日志LSN（log-sequence-number）编号规则" class="headerlink" title="3、WAL日志LSN（log sequence number）编号规则"></a>3、WAL日志LSN（log sequence number）编号规则</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">-- 查看当前的lsn号</span><br><span class="line">select pg_current_wal_lsn();</span><br><span class="line">0/3E4E6A0</span><br><span class="line"></span><br><span class="line">-- 查看的当前lsn的wal日志文件名</span><br><span class="line">select pg_walfile_name(pg_current_wal_lsn());</span><br><span class="line">000000030000000000000003</span><br><span class="line"></span><br><span class="line">-- 查看当前lsn的偏移量</span><br><span class="line">select pg_walfile_name_offset(pg_current_wal_lsn());</span><br><span class="line">(000000030000000000000003,15001248)</span><br><span class="line"></span><br><span class="line">-- 16进制转换数值</span><br><span class="line">select x&#x27;E4E6A0&#x27;::int</span><br><span class="line">15001248</span><br><span class="line"></span><br><span class="line">-- 手动刷新wal</span><br><span class="line">select pg_switch_wal();</span><br></pre></td></tr></table></figure>
+<h3 id="4、WAL流程"><a href="#4、WAL流程" class="headerlink" title="4、WAL流程"></a>4、WAL流程</h3><ul>
+<li>当数据库中的数据发生变更时：<ul>
+<li>change发送时：将所有data buffer刷新到磁盘</li>
+<li>commit发生时：wal buffer 中数据刷新到磁盘</li>
+<li>checkpoint发送时：将所有data buffer刷新到磁盘<blockquote>
+<p>“checkpoint”是一个事件，它会将所有在内存中的已修改数据页（data buffer）写入到磁盘上的数据文件中，同时更新日志文件确保在发生系统故障时可以恢复数据。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li>触发checkpoint触发场景：<ul>
+<li>checkpoit相关配置</li>
+<li>max_wal_size已满</li>
+<li>checkpoit相关配置</li>
+<li>max_wal_size已满</li>
+</ul>
+</li>
+<li>checkpoit相关配置:<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">-- 查看checkpoint_timeout配置，默认5min</span><br><span class="line">show checkpoint_timeout;</span><br><span class="line"></span><br><span class="line">-- 查看max_wal_size配置，默认1GB</span><br><span class="line">show max_wal_size;</span><br><span class="line"></span><br><span class="line">-- checkpoint_completion_target:指定检查点完成的目标。默认0.5</span><br><span class="line">-- 可以降低checkpoint对性能的影，但是数值过大时在数据库出现故障时候，会比较危险</span><br><span class="line">show checkpoint_completion_target;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="5、WAL日志解析工具使用"><a href="#5、WAL日志解析工具使用" class="headerlink" title="5、WAL日志解析工具使用"></a>5、WAL日志解析工具使用</h3><ul>
+<li>10.x版本之后，使用pg_waldump解析WAL日志</li>
+<li>10.x版本之前，使用pg_xlogdump解析WAL日志</li>
+</ul>
+<p>pg_waldump使用语法：<br>pg_waldump [option] … [startseg [endseg]]</p>
+<p>![image-20240925144840996](&#x2F;Users&#x2F;wuchu&#x2F;Library&#x2F;Application Support&#x2F;typora-user-images&#x2F;image-20240925144840996.png)</p>
+<p>![image-20240925144902630](&#x2F;Users&#x2F;wuchu&#x2F;Library&#x2F;Application Support&#x2F;typora-user-images&#x2F;image-20240925144902630.png)</p>
 
       </div>
       
         <div class="prev-or-next">
           <div class="post-foot-next">
             
+              <a href="/2024/08/07/mvcc/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>Postgresql中元组的隐藏字段与MVCC</span>
+              </a>
+            
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              2024-10-29 19:09:13
+              2024-10-29 19:17:28
             </span>
             
                   <span class="post-categories">
@@ -350,8 +266,8 @@
                     <i class="iconfont icon-tags mr-10" title="标签"></i>
                     
                     <span class="span--tag mr-8">
-                      <a href="/tags/MVCC/" title="MVCC">
-                        #MVCC
+                      <a href="/tags/%E6%97%A5%E5%BF%97/" title="日志">
+                        #日志
                       </a>
                     </span>
                     
@@ -360,8 +276,8 @@
           </div>
           <div class="post-foot-prev">
             
-              <a href="/2024/08/07/PostgreSQL%E7%9A%84%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F/" target="_self">
-                <span>Postgresql的日志系统</span>
+              <a href="/2024/08/07/PostgreSQL%E7%9A%84%20pg_hba.conf%20%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0%E8%AF%A6%E8%A7%A3/" target="_self">
+                <span>Postgresql的pg_hba.conf文件</span>
                 <i class="iconfont icon-chevronright"></i>
               </a>
             
@@ -377,7 +293,7 @@
     <div class="title">目录</div>
     <div class="catalog-content">
       
-        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90"><span class="toc-text">源码分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%9A%90%E8%97%8F%E5%AD%97%E6%AE%B5%E8%AF%A6%E7%BB%86%E5%88%86%E6%9E%90"><span class="toc-text">隐藏字段详细分析</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#t-ctid"><span class="toc-text">t_ctid</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-xmin"><span class="toc-text">t_xmin</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-xmax"><span class="toc-text">t_xmax</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-cid"><span class="toc-text">t_cid</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#MVCC%E7%9A%84%E5%8F%AF%E8%A7%81%E6%80%A7%E5%88%A4%E6%96%AD"><span class="toc-text">MVCC的可见性判断</span></a></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81postgresql%E6%97%A5%E5%BF%97%E7%B1%BB%E5%9E%8B"><span class="toc-text">1、postgresql日志类型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81pg-log%E7%9A%84%E5%BC%80%E5%90%AF%EF%BC%8C%E4%BF%AE%E6%94%B9postgresql-conf%E7%9B%B8%E5%85%B3%E9%85%8D%E7%BD%AE"><span class="toc-text">2、pg_log的开启，修改postgresql.conf相关配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81WAL%E6%97%A5%E5%BF%97LSN%EF%BC%88log-sequence-number%EF%BC%89%E7%BC%96%E5%8F%B7%E8%A7%84%E5%88%99"><span class="toc-text">3、WAL日志LSN（log sequence number）编号规则</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4%E3%80%81WAL%E6%B5%81%E7%A8%8B"><span class="toc-text">4、WAL流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5%E3%80%81WAL%E6%97%A5%E5%BF%97%E8%A7%A3%E6%9E%90%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8"><span class="toc-text">5、WAL日志解析工具使用</span></a></li></ol>
       
     </div>
   </div>
@@ -735,12 +651,12 @@
       </a>
       <div class="share-content hidden">
         
-          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + Postgresql%E4%B8%AD%E5%85%83%E7%BB%84%E7%9A%84%E9%9A%90%E8%97%8F%E5%AD%97%E6%AE%B5%E4%B8%8EMVCC + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F08%2F07%2Fmvcc%2F + '" target="_blank" title="Twitter">
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + Postgresql%E7%9A%84%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F08%2F07%2FPostgreSQL%25E7%259A%2584%25E6%2597%25A5%25E5%25BF%2597%25E7%25B3%25BB%25E7%25BB%259F%2F + '" target="_blank" title="Twitter">
             <i class="iconfont icon-twitter"></i>
           </a>
         
         
-          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/08/07/mvcc/" target="_blank" title="Facebook">
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/08/07/PostgreSQL%E7%9A%84%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F/" target="_blank" title="Facebook">
             <i class="iconfont icon-facebooksquare"></i>
           </a>
         

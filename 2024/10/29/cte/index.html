@@ -15,7 +15,7 @@
   
   <title>
     
-      Postgresql中元组的隐藏字段与MVCC 
+      使用CTE 实现递归搜索 
       
       
       |
@@ -166,11 +166,11 @@
   <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
   <div class="container post-details" id="post-details">
     <div class="post-content">
-      <div class="post-title">Postgresql中元组的隐藏字段与MVCC</div>
+      <div class="post-title">使用CTE 实现递归搜索</div>
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-          2024-10-29 19:09:13
+          2024-10-29 19:11:44
         </span>
         
               <span class="post-categories">
@@ -188,8 +188,14 @@
                 <i class="iconfont icon-tags mr-10" title="标签"></i>
                 
                 <span class="span--tag mr-8">
-                  <a href="/tags/MVCC/" title="MVCC">
-                    #MVCC
+                  <a href="/tags/CTE/" title="CTE">
+                    #CTE
+                  </a>
+                </span>
+                
+                <span class="span--tag mr-8">
+                  <a href="/tags/SQL/" title="SQL">
+                    #SQL
                   </a>
                 </span>
                 
@@ -197,142 +203,41 @@
           
       </div>
       <div class="markdown-body">
-        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>看了两本书，对pg元组隐藏字段的描述都不太清楚，导致我很难理解隐藏字段值的变化原因，这里详细介绍隐藏一下pg中元组每个隐藏字段的意义。</p>
-<h3 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h3><p>安装的pg版本为<code>11</code>，每个元组的头部信息在<code>HeapTupleHeaderData</code>中定义：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">HeapTupleHeaderData</span></span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">union</span></span><br><span class="line">	&#123;</span><br><span class="line">		HeapTupleFields t_heap; <span class="comment">//存放元组描述信息</span></span><br><span class="line">		DatumTupleFields t_datum;</span><br><span class="line">	&#125;			t_choice;</span><br><span class="line"></span><br><span class="line">	ItemPointerData t_ctid;		<span class="comment">/*元组的存放位置，一般值为“（blockid,itemid）”  */</span></span><br><span class="line">	uint16		t_infomask2;	<span class="comment">/* 属性和标识位 */</span></span><br><span class="line">	uint16		t_infomask;		<span class="comment">/* 其他标识位 */</span></span><br><span class="line">	uint8		t_hoff;			<span class="comment">/* 首部+位图+填充的长度 */</span></span><br><span class="line">	bits8		t_bits[<span class="number">1</span>];	<span class="comment">/* bitmap of NULLs */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>HeapTupleHeaderData中的<code>t_heap</code>存储着元组的一些描述信息，结构如下：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> <span class="title class_">HeapTupleFields</span></span><br><span class="line">&#123;</span><br><span class="line">TransactionId t_xmin;   <span class="comment">/* 插入或修改事务的ID */</span></span><br><span class="line">TransactionId t_xmax;   <span class="comment">/* 删除或者锁定事务的ID */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">union</span></span><br><span class="line">&#123;</span><br><span class="line">   CommandId t_cid;   <span class="comment">/* 插入或者删除的命令ID */</span></span><br><span class="line">   TransactionId t_xvac; <span class="comment">/* 执行vacuum full的事务ID */</span></span><br><span class="line">&#125;    t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure>
-
-<p>经过分析源码，发现核心的隐藏字段有：<strong>t_ctid、t_xmin、t_xmax、t_cid</strong></p>
-<p>执行命令：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> attname, attnum, attisdropped, attlen, attalign, attnotnull</span><br><span class="line"><span class="keyword">FROM</span> pg_catalog.pg_attribute <span class="keyword">WHERE</span> attrelid <span class="operator">=</span> <span class="string">&#x27;test&#x27;</span>::regclass</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> attnum;</span><br></pre></td></tr></table></figure>
-
-<p>发现实际表的隐藏字段如下所示：</p>
-<img src="/2024/08/07/mvcc/image.png" class="" title="图一">
-
-<p>所以说源码中的字段跟实际隐藏字段的name有区别，对应关系：</p>
-<table>
-<thead>
-<tr>
-<th>源码字段</th>
-<th>实际隐藏字段</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>t_ctid</td>
-<td>ctid</td>
-</tr>
-<tr>
-<td>t_xmin</td>
-<td>xmin</td>
-</tr>
-<tr>
-<td>t_xmax</td>
-<td>xmax</td>
-</tr>
-<tr>
-<td>t_cid</td>
-<td>cmax、cmin</td>
-</tr>
-</tbody></table>
-<h3 id="隐藏字段详细分析"><a href="#隐藏字段详细分析" class="headerlink" title="隐藏字段详细分析"></a>隐藏字段详细分析</h3><h5 id="t-ctid"><a href="#t-ctid" class="headerlink" title="t_ctid"></a>t_ctid</h5><img src="/2024/08/07/mvcc/image.2.png" class="" title="图2️"> 
-
-<img src="/2024/08/07/mvcc/image.4.png" class="" title="图3">
-
-<p>对应实际字段中的ctid，表示数据记录的物理行当信息，指的是一条记录位于哪个数据块的哪个位移上面。<br>格式<code>(blockid,itemid)</code>：拿上图其中的(0,1)来说；0表示块id；1表示在这块第一条记录。</p>
+        <p><strong>1、假设我们有一个表示中国城市层次结构的表 <code>cities</code>，其结构如下：</strong></p>
 <ul>
-<li><p><strong>当执行insert操作时，ctid的变化如下：</strong></p>
-<img src="/2024/08/07/mvcc/image.5.png" class="" title="图4">
-
-<img src="/2024/08/07/mvcc/image.6.png" class="" title="图5">
-
-<p>看出来是顺序累加。</p>
-</li>
-<li><p><strong>当执行更新操作时，ctid的变化：</strong></p>
-<img src="/2024/08/07/mvcc/image.7.png" class="" title="图6">
-
-<img src="/2024/08/07/mvcc/image.8.png" class="" title="图7">
-
-<img src="/2024/08/07/mvcc/image.11.png" class="" title="图8">
-
-<p>更新操作实际上就是先删除一条数据，再插入一条数据。但是这个删除并不会移除物理存储内容，也就是说（0，2）这个位置的元组还在，因此新插入的数据的ctid为（0，3）。<br>如果执行vacuum操作，再插入一条数据：</p>
-<img src="/2024/08/07/mvcc/image.9.png" class="" title="图9"></li>
+<li><code>id</code>：城市的唯一标识符</li>
+<li><code>name</code>：城市的名称</li>
+<li><code>parent_id</code>：父城市的唯一标识符（省级城市的 <code>parent_id</code> 为 <code>NULL</code>）</li>
 </ul>
-<blockquote>
-<p><strong>发现并不会在（0，2）位置上插入新数据？</strong><br><strong>分析：</strong>新插入的数据通常不会立即填充刚刚清理的空间，而是优先使用表末尾的空闲空间，这涉及到数据库的存储管理和性能优化策略。减少碎片化：优先使用表末尾的空闲空间可以减少数据文件的碎片化，提高查询性能。提高插入性能：插入新数据到表末尾的空闲空间比在表中间找到一个合适的空闲位置更高效。</p>
-</blockquote>
-<h5 id="t-xmin"><a href="#t-xmin" class="headerlink" title="t_xmin"></a>t_xmin</h5><p>存储的是产生这个元组的事务ID，可能是insert或者update语句</p>
-<img src="/2024/08/07/mvcc/image.12.png" class="" title="图10">
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> cities (</span><br><span class="line">  id SERIAL <span class="keyword">PRIMARY</span> KEY,</span><br><span class="line">  name <span class="type">VARCHAR</span>(<span class="number">100</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  parent_id <span class="type">INT</span> <span class="keyword">REFERENCES</span> cities(id)</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
 
-<h5 id="t-xmax"><a href="#t-xmax" class="headerlink" title="t_xmax"></a>t_xmax</h5><p>存储的是删除或者锁定这个元组的事务ID</p>
-<h5 id="t-cid"><a href="#t-cid" class="headerlink" title="t_cid"></a>t_cid</h5><p>包含cmin和cmax两个字段，分别存储创建这个元组的Command ID和删除这个元组的Command ID。在事务执行期间，会给改期间执行的所以命令设置一个唯一ID，也就是Command ID。</p>
-<h3 id="MVCC的可见性判断"><a href="#MVCC的可见性判断" class="headerlink" title="MVCC的可见性判断"></a>MVCC的可见性判断</h3><p>MVCC 可见性判断主要就是将元组的 xmin、xmax、cmin、cmax 以及 t_infomask 信息结合快照 snapshot 以及 CLOG 中的信息，根据可见性判断规则，决定一个元组是否可见。<br>可见性判断主要分为两个部分：</p>
-<ul>
-<li>对元组的 xmin 进行可见性判断，即 insert 该元组的事务是否已提交，是否可见。</li>
-<li>对元组的 xmax 进行可见性判断，即该元组是否已被 update 或者 delete。</li>
-</ul>
-<p>为了简化逻辑，去除了一些兼容相关的干扰以及很少走到的一些代码路径。以下是关于元组 xmin 的判断规则：</p>
-<p>1.如果元组 xmin 未提交，判断条件为：!(t_infomask &amp; HEAP_XMIN_COMMITTED)</p>
-<p>1.1 如果元组的 xmin 无效，即 HeapTupleHeaderXminInvalid(tuple)，返回不可见</p>
-<p>1.2 如果元组的 xmin 在当前事务（包含子事务）中</p>
-<ul>
-<li>1.2.1 如果元组的 cmin 大于等于 快照的 commandId，返回不可见</li>
-<li>1.2.2 如果元组的 t_infomask 包含 HEAP_XMAX_INVALID 标记，即 xmax 无效，返回可见</li>
-<li>1.2.3 如果元组的 t_infomask 仅包含 HEAP_XMAX_EXCL_LOCK，返回可见</li>
-<li>1.2.4 如果元组的 xmax 不在当前事务中，设置标记 HEAP_XMAX_INVALID，返回可见</li>
-<li>1.2.5 如果元组的 cmax 大于等于快照的 commandId，返回可见，否则返回不可见</li>
-</ul>
-<p>1.3 如果元组的 xmin 在快照的活跃事务列表中，返回不可见</p>
-<p>1.4 如果元组的 xmin 在 clog 中已提交，设置标记 HEAP_XMIN_COMMITTED</p>
-<p>1.5 设置标记 HEAP_XMIN_INVALID，返回不可见</p>
-<p>2.如果元组的 xmin 已提交</p>
-<p>2.1 如果元组的 xmin 未冻结并且 xmin 在快照活跃事务列表中，返回不可见</p>
-<p><strong>到此说明元组的 xmin 已提交，即 insert 已提交，是否可见还得看 xmax，下面是关于 xmax 的判断规则</strong></p>
-<p>3.t_infomask 标记包含 HEAP_XMAX_INVALID，返回可见</p>
-<p>4.t_infomask 标记满足 HEAP_XMAX_IS_LOCKED_ONLY，返回可见</p>
-<p>5.如果 t_infomask 不包含 HEAP_XMAX_COMMITTED</p>
-<p>5.1 如果 xmax 在当前事务中</p>
-<ul>
-<li>5.1.1 cmax 大于等于快照的cid，返回可见</li>
-<li>5.1.2 cmax 小于快照的 cid，返回不可见</li>
-</ul>
-<p>5.2 如果 xmax 在快照的活跃事务列表中，返回可见</p>
-<p>5.3 如果 xmax 在 clog 中没有提交，设置标记 HEAP_XMAX_INVALID，返回可见</p>
-<p>5.4 设置标记 HEAP_XMAX_COMMITTED</p>
-<p>6.t_infomask 包含 HEAP_XMAX_COMMITTED</p>
-<p>6.1 如果 xmax 在快照的活跃事务列表中，返回可见</p>
-<p>除了以上描述的情况外，其他的都返回不可见</p>
-<p>7.其他都是返回不可见</p>
-<p>以上分析可以看出 MVCC 可见性判断的规则还是比较复杂的，考虑了很多场景，规则之间还有先后顺序依赖。总结可见性规则影响因素如下：</p>
-<ul>
-<li>xmin 是否已提交，是否有效</li>
-<li>xmin 是否在当前会话的事务中</li>
-<li>xmin 是否在快照活跃事务列表中</li>
-<li>xmin 在 clog 中的状态</li>
-<li>cmin 与 快照 cid 的大小比较</li>
-<li>xmax 是否已提交，是否有效</li>
-<li>xmax 是否在当前会话的事务中</li>
-<li>xmax 是否在快照活跃事务列表中</li>
-<li>xmax 在 clog 中的状态</li>
-<li>cmax 与快照 cid 的大小比较</li>
-</ul>
-<p>关于可见性分析，有两点需要注意：</p>
-<ol>
-<li>即使是 select 查询，也可能会写 wal 日志，比如设置 HEAP_XMIN_COMMITTED 这个操作就会涉及写 wal 日志。</li>
-<li>此外即使 insert 事务已提交，已经写入 CLOG，但是该事务的事务号还没有从活跃事务列表中删除，那么元组仍然是不可见的。</li>
-</ol>
+<p><strong>2、假设我们有以下数据：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;中国&#x27;</span>, <span class="keyword">NULL</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;北京&#x27;</span>, <span class="number">1</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;上海&#x27;</span>, <span class="number">1</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;广东省&#x27;</span>, <span class="number">1</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;广州市&#x27;</span>, <span class="number">4</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;深圳市&#x27;</span>, <span class="number">4</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;天河区&#x27;</span>, <span class="number">5</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;南山区&#x27;</span>, <span class="number">6</span>);</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> id <span class="operator">|</span>  name  <span class="operator">|</span> parent_id </span><br><span class="line"><span class="comment">----+--------+-----------</span></span><br><span class="line">  <span class="number">1</span> <span class="operator">|</span> 中国    <span class="operator">|</span>          </span><br><span class="line">  <span class="number">2</span> <span class="operator">|</span> 北京    <span class="operator">|</span>         <span class="number">1</span></span><br><span class="line">  <span class="number">3</span> <span class="operator">|</span> 上海    <span class="operator">|</span>         <span class="number">1</span></span><br><span class="line">  <span class="number">4</span> <span class="operator">|</span> 广东省  <span class="operator">|</span>         <span class="number">1</span></span><br><span class="line">  <span class="number">5</span> <span class="operator">|</span> 广州市  <span class="operator">|</span>         <span class="number">4</span></span><br><span class="line">  <span class="number">6</span> <span class="operator">|</span> 深圳市  <span class="operator">|</span>         <span class="number">4</span></span><br><span class="line">  <span class="number">7</span> <span class="operator">|</span> 天河区  <span class="operator">|</span>         <span class="number">5</span></span><br><span class="line">  <span class="number">8</span> <span class="operator">|</span> 南山区  <span class="operator">|</span>         <span class="number">6</span></span><br><span class="line">(<span class="number">8</span> <span class="keyword">rows</span>)</span><br></pre></td></tr></table></figure>
+
+<p><strong>3、假设我们希望查询 <code>广东省</code> 及其所有子城市的层次结构。并得到以下结果：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> id <span class="operator">|</span>  name  <span class="operator">|</span> parent_id <span class="operator">|</span>            full_path            </span><br><span class="line"><span class="comment">----+--------+-----------+---------------------------------</span></span><br><span class="line">  <span class="number">1</span> <span class="operator">|</span> 中国    <span class="operator">|</span>           <span class="operator">|</span> 中国</span><br><span class="line">  <span class="number">2</span> <span class="operator">|</span> 北京    <span class="operator">|</span>         <span class="number">1</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 北京</span><br><span class="line">  <span class="number">3</span> <span class="operator">|</span> 上海    <span class="operator">|</span>         <span class="number">1</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 上海</span><br><span class="line">  <span class="number">4</span> <span class="operator">|</span> 广东省  <span class="operator">|</span>         <span class="number">1</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省</span><br><span class="line">  <span class="number">5</span> <span class="operator">|</span> 广州市  <span class="operator">|</span>         <span class="number">4</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 广州市</span><br><span class="line">  <span class="number">6</span> <span class="operator">|</span> 深圳市  <span class="operator">|</span>         <span class="number">4</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 深圳市</span><br><span class="line">  <span class="number">7</span> <span class="operator">|</span> 天河区  <span class="operator">|</span>         <span class="number">5</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 广州市 <span class="operator">&gt;</span> 天河区</span><br><span class="line">  <span class="number">8</span> <span class="operator">|</span> 南山区  <span class="operator">|</span>         <span class="number">6</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 深圳市 <span class="operator">&gt;</span> 南山区</span><br><span class="line">(<span class="number">8</span> <span class="keyword">rows</span>)</span><br></pre></td></tr></table></figure>
+
+<p><strong>4、我们可以使用递归 CTE 来实现这一点。</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">WITH</span> <span class="keyword">RECURSIVE</span> city_hierarchy <span class="keyword">AS</span> (</span><br><span class="line">  <span class="comment">-- 基础查询：选择根节点，并初始化路径</span></span><br><span class="line">  <span class="keyword">SELECT</span> id, name, parent_id, name::<span class="type">VARCHAR</span> <span class="keyword">AS</span> full_path</span><br><span class="line">  <span class="keyword">FROM</span> cities</span><br><span class="line">  <span class="keyword">WHERE</span> name <span class="operator">=</span> <span class="string">&#x27;中国&#x27;</span></span><br><span class="line">  </span><br><span class="line">  <span class="keyword">UNION</span> <span class="keyword">ALL</span></span><br><span class="line">  </span><br><span class="line">  <span class="comment">-- 递归查询：选择子节点，并构建路径</span></span><br><span class="line">  <span class="keyword">SELECT</span> c.id, c.name, c.parent_id, (ch.full_path <span class="operator">||</span> <span class="string">&#x27; &gt; &#x27;</span> <span class="operator">||</span> c.name)::<span class="type">VARCHAR</span> <span class="keyword">AS</span> full_path</span><br><span class="line">  <span class="keyword">FROM</span> cities c</span><br><span class="line">  <span class="keyword">INNER</span> <span class="keyword">JOIN</span> city_hierarchy ch <span class="keyword">ON</span> c.parent_id <span class="operator">=</span> ch.id</span><br><span class="line">)</span><br><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> city_hierarchy;</span><br></pre></td></tr></table></figure>
+
 
       </div>
       
         <div class="prev-or-next">
           <div class="post-foot-next">
             
+              <a href="/2024/10/29/checkpoint%E6%9C%BA%E5%88%B6/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</span>
+              </a>
+            
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              2024-10-29 19:09:13
+              2024-10-29 19:11:44
             </span>
             
                   <span class="post-categories">
@@ -350,8 +255,14 @@
                     <i class="iconfont icon-tags mr-10" title="标签"></i>
                     
                     <span class="span--tag mr-8">
-                      <a href="/tags/MVCC/" title="MVCC">
-                        #MVCC
+                      <a href="/tags/CTE/" title="CTE">
+                        #CTE
+                      </a>
+                    </span>
+                    
+                    <span class="span--tag mr-8">
+                      <a href="/tags/SQL/" title="SQL">
+                        #SQL
                       </a>
                     </span>
                     
@@ -360,8 +271,8 @@
           </div>
           <div class="post-foot-prev">
             
-              <a href="/2024/08/07/PostgreSQL%E7%9A%84%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F/" target="_self">
-                <span>Postgresql的日志系统</span>
+              <a href="/2024/10/29/PG%E5%8F%82%E6%95%B0/" target="_self">
+                <span>PostgreSQL参数</span>
                 <i class="iconfont icon-chevronright"></i>
               </a>
             
@@ -370,23 +281,6 @@
       
     </div>
     
-  <div id="btn-catalog" class="btn-catalog">
-    <i class="iconfont icon-catalog"></i>
-  </div>
-  <div class="post-catalog hidden" id="catalog">
-    <div class="title">目录</div>
-    <div class="catalog-content">
-      
-        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90"><span class="toc-text">源码分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%9A%90%E8%97%8F%E5%AD%97%E6%AE%B5%E8%AF%A6%E7%BB%86%E5%88%86%E6%9E%90"><span class="toc-text">隐藏字段详细分析</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#t-ctid"><span class="toc-text">t_ctid</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-xmin"><span class="toc-text">t_xmin</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-xmax"><span class="toc-text">t_xmax</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#t-cid"><span class="toc-text">t_cid</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#MVCC%E7%9A%84%E5%8F%AF%E8%A7%81%E6%80%A7%E5%88%A4%E6%96%AD"><span class="toc-text">MVCC的可见性判断</span></a></li></ol>
-      
-    </div>
-  </div>
-
-  
-<script src="/js/catalog.js"></script>
-
-
-
 
     
       <div class="comments-container">
@@ -735,12 +629,12 @@
       </a>
       <div class="share-content hidden">
         
-          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + Postgresql%E4%B8%AD%E5%85%83%E7%BB%84%E7%9A%84%E9%9A%90%E8%97%8F%E5%AD%97%E6%AE%B5%E4%B8%8EMVCC + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F08%2F07%2Fmvcc%2F + '" target="_blank" title="Twitter">
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + %E4%BD%BF%E7%94%A8CTE%20%E5%AE%9E%E7%8E%B0%E9%80%92%E5%BD%92%E6%90%9C%E7%B4%A2 + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F10%2F29%2Fcte%2F + '" target="_blank" title="Twitter">
             <i class="iconfont icon-twitter"></i>
           </a>
         
         
-          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/08/07/mvcc/" target="_blank" title="Facebook">
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/10/29/cte/" target="_blank" title="Facebook">
             <i class="iconfont icon-facebooksquare"></i>
           </a>
         
