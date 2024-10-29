@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="吴楚" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="练习两年半的PG小学生" />
+  
+  
+  
+  <title>
+    
+      Postgresql的日志系统 
+      
+      
+      |
+    
+     梧杵
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/rab.svg">
+    <link rel="icon" href="/images/rab.svg">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="/plugins/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+  
+    <link href="/plugins/jquery.fancybox.min.css" rel="stylesheet">
+    <script defer type="text/javascript" src="/plugins/jquery.fancybox.min.js"></script>
+  
+  
+<script src="/js/fancybox.js"></script>
+
+
+  
+
+  
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+<meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="梧杵" type="application/atom+xml">
+</head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img src="/images/rab.svg" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">梧杵</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">记录</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">随笔</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/tags/">
+          <a href="/tags/">标签</a>
+        </li>
+      
+        <li class="nav-item" data-path="/friends/">
+          <a href="/friends/">朋友</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+<script src="/js/activeNav.js"></script>
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="/plugins/mathjax/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="/plugins/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">Postgresql的日志系统</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2024-10-29 19:43:11
+        </span>
+        
+              <span class="post-categories">
+                <i class="iconfont icon-bookmark" title="分类"></i>
+                
+                <span class="span--category">
+                  <a href="/categories/PostgreSQL/" title="PostgreSQL">
+                    <b>#</b> PostgreSQL
+                  </a>
+                </span>
+                
+              </span>
+          
+              <span class="post-tags">
+                <i class="iconfont icon-tags mr-10" title="标签"></i>
+                
+                <span class="span--tag mr-8">
+                  <a href="/tags/%E6%97%A5%E5%BF%97/" title="日志">
+                    #日志
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <h3 id="1、postgresql日志类型"><a href="#1、postgresql日志类型" class="headerlink" title="1、postgresql日志类型"></a>1、postgresql日志类型</h3><ol>
+<li><strong>pg_log –&gt; log：</strong>数据库运行日志，如各种error信息，慢查询，服务器与DB的状态信息等，默认关闭，可以通过参数自定义存储位置，格式等</li>
+<li><strong>pg_xlog –&gt; pg_wal：</strong>WAL日志，即重做日志，默认大小16MB，强制打开</li>
+<li><strong>pg_clog –&gt; pg_xact：</strong>事务提交日志，记录事务的元数据，强制打开</li>
+</ol>
+<blockquote>
+<p>在10.0版本开始，pg_xlog目录被重新命名为pg_wal，pg_clog目录被重命名为pg_xact,pg_log目录被重命名为log</p>
+</blockquote>
+<h3 id="2、pg-log的开启，修改postgresql-conf相关配置"><a href="#2、pg-log的开启，修改postgresql-conf相关配置" class="headerlink" title="2、pg_log的开启，修改postgresql.conf相关配置"></a>2、pg_log的开启，修改postgresql.conf相关配置</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">##开启日志记录</span><br><span class="line">logging_collector = on</span><br><span class="line"></span><br><span class="line">##stderr,csvlog,syslog,and eventlog，默认stderr</span><br><span class="line">log_destination = &#x27;stderr&#x27;</span><br><span class="line"></span><br><span class="line">##日志保存路径</span><br><span class="line">log_directory = &#x27;/data/pg_data/log/&#x27;</span><br><span class="line"></span><br><span class="line">##日志文件格式</span><br><span class="line">log_filename = &#x27;postgresql-%Y-%m-%d_%H%M%S.log&#x27;</span><br><span class="line"></span><br><span class="line">##日志文件权限</span><br><span class="line">log_file_mode = 0600</span><br><span class="line"></span><br><span class="line">##是否开启通过日志覆盖模式</span><br><span class="line">log_truncate_on_rotation = off</span><br><span class="line"></span><br><span class="line">##日志输出格式</span><br><span class="line">log_line_prefix = &#x27;%t:%r:%u@%d:[%p]:&#x27;</span><br><span class="line"></span><br><span class="line">##none, ddl, mod, all，需要记录的类型</span><br><span class="line">log_statement = &#x27;ddl&#x27;</span><br></pre></td></tr></table></figure>
+<h3 id="3、WAL日志LSN（log-sequence-number）编号规则"><a href="#3、WAL日志LSN（log-sequence-number）编号规则" class="headerlink" title="3、WAL日志LSN（log sequence number）编号规则"></a>3、WAL日志LSN（log sequence number）编号规则</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">-- 查看当前的lsn号</span><br><span class="line">select pg_current_wal_lsn();</span><br><span class="line">0/3E4E6A0</span><br><span class="line"></span><br><span class="line">-- 查看的当前lsn的wal日志文件名</span><br><span class="line">select pg_walfile_name(pg_current_wal_lsn());</span><br><span class="line">000000030000000000000003</span><br><span class="line"></span><br><span class="line">-- 查看当前lsn的偏移量</span><br><span class="line">select pg_walfile_name_offset(pg_current_wal_lsn());</span><br><span class="line">(000000030000000000000003,15001248)</span><br><span class="line"></span><br><span class="line">-- 16进制转换数值</span><br><span class="line">select x&#x27;E4E6A0&#x27;::int</span><br><span class="line">15001248</span><br><span class="line"></span><br><span class="line">-- 手动刷新wal</span><br><span class="line">select pg_switch_wal();</span><br></pre></td></tr></table></figure>
+<h3 id="4、WAL流程"><a href="#4、WAL流程" class="headerlink" title="4、WAL流程"></a>4、WAL流程</h3><ul>
+<li>当数据库中的数据发生变更时：<ul>
+<li>change发送时：将所有data buffer刷新到磁盘</li>
+<li>commit发生时：wal buffer 中数据刷新到磁盘</li>
+<li>checkpoint发送时：将所有data buffer刷新到磁盘<blockquote>
+<p>“checkpoint”是一个事件，它会将所有在内存中的已修改数据页（data buffer）写入到磁盘上的数据文件中，同时更新日志文件确保在发生系统故障时可以恢复数据。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li>触发checkpoint触发场景：<ul>
+<li>checkpoit相关配置</li>
+<li>max_wal_size已满</li>
+<li>checkpoit相关配置</li>
+<li>max_wal_size已满</li>
+</ul>
+</li>
+<li>checkpoit相关配置:<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">-- 查看checkpoint_timeout配置，默认5min</span><br><span class="line">show checkpoint_timeout;</span><br><span class="line"></span><br><span class="line">-- 查看max_wal_size配置，默认1GB</span><br><span class="line">show max_wal_size;</span><br><span class="line"></span><br><span class="line">-- checkpoint_completion_target:指定检查点完成的目标。默认0.5</span><br><span class="line">-- 可以降低checkpoint对性能的影，但是数值过大时在数据库出现故障时候，会比较危险</span><br><span class="line">show checkpoint_completion_target;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="5、WAL日志解析工具使用"><a href="#5、WAL日志解析工具使用" class="headerlink" title="5、WAL日志解析工具使用"></a>5、WAL日志解析工具使用</h3><ul>
+<li>10.x版本之后，使用pg_waldump解析WAL日志</li>
+<li>10.x版本之前，使用pg_xlogdump解析WAL日志</li>
+</ul>
+<p>pg_waldump使用语法：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pg_waldump [option] … [startseg [endseg]]</span><br></pre></td></tr></table></figure>
+<p>相关参数：</p>
+<img src="/2024/08/07/log/image1.png" class="" title="图1">
+<p>执行结果：</p>
+<img src="/2024/08/07/log/image2.png" class="" title="图2">
+      </div>
+      
+        <div class="prev-or-next">
+          <div class="post-foot-next">
+            
+              <a href="/2024/08/08/databse/" target="_self">
+                <span>数据库基础知识</span>
+                <i class="iconfont icon-chevronright"></i>
+              </a>
+            
+          </div>
+          <div class="post-attach">
+            <span class="post-pubtime">
+              <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+              2024-10-29 19:43:11
+            </span>
+            
+                  <span class="post-categories">
+                    <i class="iconfont icon-bookmark" title="分类"></i>
+                    
+                    <span class="span--category">
+                      <a href="/categories/PostgreSQL/" title="PostgreSQL">
+                        <b>#</b> PostgreSQL
+                      </a>
+                    </span>
+                    
+                  </span>
+              
+                  <span class="post-tags">
+                    <i class="iconfont icon-tags mr-10" title="标签"></i>
+                    
+                    <span class="span--tag mr-8">
+                      <a href="/tags/%E6%97%A5%E5%BF%97/" title="日志">
+                        #日志
+                      </a>
+                    </span>
+                    
+                  </span>
+              
+          </div>
+          <div class="post-foot-prev">
+            
+              <a href="/2024/08/07/pg_hba/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>Postgresql的pg_hba.conf文件</span>
+              </a>
+            
+          </div>
+        </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81postgresql%E6%97%A5%E5%BF%97%E7%B1%BB%E5%9E%8B"><span class="toc-text">1、postgresql日志类型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81pg-log%E7%9A%84%E5%BC%80%E5%90%AF%EF%BC%8C%E4%BF%AE%E6%94%B9postgresql-conf%E7%9B%B8%E5%85%B3%E9%85%8D%E7%BD%AE"><span class="toc-text">2、pg_log的开启，修改postgresql.conf相关配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81WAL%E6%97%A5%E5%BF%97LSN%EF%BC%88log-sequence-number%EF%BC%89%E7%BC%96%E5%8F%B7%E8%A7%84%E5%88%99"><span class="toc-text">3、WAL日志LSN（log sequence number）编号规则</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4%E3%80%81WAL%E6%B5%81%E7%A8%8B"><span class="toc-text">4、WAL流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5%E3%80%81WAL%E6%97%A5%E5%BF%97%E8%A7%A3%E6%9E%90%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8"><span class="toc-text">5、WAL日志解析工具使用</span></a></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+      <div class="comments-container">
+        
+
+
+
+
+  
+    <script async type="text/javascript" src='/js/valine.js' onload="loadValineSuc(this)"></script>
+  
+
+  <div id="vcomments"></div>
+
+  <script>
+    function loadValineSuc() {
+      new Valine({
+        el: '#vcomments',
+        appId: '89WggGTU4RJJMUPC5HVpfSsS-gzGzoHsz',
+        appKey: 'vv2kKVwLzl0fRkVT3vqA1Gtx',
+        placeholder: '欢迎留言，您的评论将被显示在下方！',
+        avatar: 'monsterid',
+        lang: 'zh-CN'
+      })
+    }
+  </script>
+
+    <style>
+      .comments-container .v .vempty {
+        display: none!important;
+      }
+    </style>
+
+
+
+
+      </div>
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+      
+        <li>
+          
+              <a title="github" target="_blank" rel="noopener" href="https://github.com/wuchuboy">
+                <i class="iconfont icon-github"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+            <a title="email" href="mailto:">
+              <i class="iconfont icon-envelope"></i>
+            </a>
+            
+        </li>
+        
+        <li>
+          
+              <a title="wechat" href="">
+                <i class="iconfont icon-wechat"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+              <a title="weibo" href="">
+                <i class="iconfont icon-weibo"></i>
+              </a>
+              
+        </li>
+        
+        <li>
+          
+              <a title="rss" href="/atom.xml">
+                <i class="iconfont icon-rss"></i>
+              </a>
+              
+        </li>
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/wuchuboy">Copyright © 2024 梧杵</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/wuchuboy">Theme by Oranges | Powered by WuChu</a>
+        
+    </div>
+  
+  
+    <div class="footer-views">
+      
+          本站总访问量<span id="busuanzi_value_site_pv"></span>次
+        
+      
+          本文总阅读量<span id="busuanzi_value_page_pv"></span>次
+        
+      
+          本站访客数<span id="busuanzi_value_site_uv"></span>人
+        
+      
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+  
+<script src="/js/colorscheme.js"></script>
+
+
+
+
+
+        
+  
+    <div class="share-icon tools-bar-item">
+      <a href="javascript: void(0)" id="share-icon">
+        <i class="iconfont iconshare"></i>
+      </a>
+      <div class="share-content hidden">
+        
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + Postgresql%E7%9A%84%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F08%2F07%2Flog%2F + '" target="_blank" title="Twitter">
+            <i class="iconfont icon-twitter"></i>
+          </a>
+        
+        
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/08/07/log/" target="_blank" title="Facebook">
+            <i class="iconfont icon-facebooksquare"></i>
+          </a>
+        
+      </div>
+    </div>
+  
+  
+<script src="/js/shares.js"></script>
+
+
+
+      </div>
+    </div>
+  </body>
+</html>
