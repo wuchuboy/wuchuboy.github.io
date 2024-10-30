@@ -204,7 +204,7 @@
 <h3 id="1、连接postgresql"><a href="#1、连接postgresql" class="headerlink" title="1、连接postgresql"></a>1、连接postgresql</h3><p>打开终端或命令提示符：打开终端（Linux&#x2F;macOS）或命令提示符（Windows）来执行命令。</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">su - postgres</span><br></pre></td></tr></table></figure>
 <p>结果</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">psql</span><br></pre></td></tr></table></figure>
+<figure class="highlight ebnf"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">psql</span></span><br></pre></td></tr></table></figure>
 <h3 id="2、列出系统表"><a href="#2、列出系统表" class="headerlink" title="2、列出系统表"></a>2、列出系统表</h3><p>连接到数据库后，执行以下 SQL 查询来列出可用的系统</p>
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> table_name <span class="keyword">FROM</span> information_schema.tables <span class="keyword">WHERE</span> table_schema <span class="operator">=</span> <span class="string">&#x27;pg_catalog&#x27;</span>;</span><br></pre></td></tr></table></figure>
 <h3 id="3、核心系统表的功能"><a href="#3、核心系统表的功能" class="headerlink" title="3、核心系统表的功能"></a>3、核心系统表的功能</h3><ol>
