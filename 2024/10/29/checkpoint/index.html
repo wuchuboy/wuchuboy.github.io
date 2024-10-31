@@ -170,7 +170,7 @@
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-            更新于 2024-10-31 15:13:37
+            更新于 2024-10-31 15:18:55
         </span>
         
               <span class="post-categories">
@@ -198,9 +198,9 @@
       </div>
       <div class="markdown-body">
         <h3 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h3><ul>
-<li><strong>WAL 日志就这么一直写下去，子子孙孙无穷匮也，磁盘不炸了吗</strong></li>
-<li><strong>我怎么知道数据库什么时候崩的？恢复的时候，WAL 日志应该从哪开始重放呢？</strong></li>
-<li><strong>checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</strong></li>
+<li>WAL 日志就这么一直写下去，子子孙孙无穷匮也，磁盘不炸了吗</li>
+<li>我怎么知道数据库什么时候崩的？恢复的时候，WAL 日志应该从哪开始重放呢？</li>
+<li>checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</li>
 </ul>
 <h3 id="2、checkpoint"><a href="#2、checkpoint" class="headerlink" title="2、checkpoint"></a>2、checkpoint</h3><p>checkpoint是一个<strong>操作</strong>，执行这个操作的开始时刻，会记录当前开始时刻的 WAL 位置作为<strong>重做点</strong>，这个位置会被保存在文件中。 然后将该<strong>重做点之前</strong>所有 shared buffer 中的脏页均被刷入到存储。checkpoint又名检查点，<strong>一般checkpoint会将某个时间点之前的脏数据全部刷新到磁盘，以实现数据的一致性与完整性。</strong><br>目前各个流行的关系型数据库都具备checkpoint功能，其主要目的是为了缩短崩溃恢复时间，以Oracle为例，在进行数据恢复时，会以最近的checkpoint为参考点执行事务前滚。PostgreSQL在崩溃恢复时会以最近的checkpoint为基础，不断应用这之后的WAL日志。<br>简单来说：</p>
 <ul>
@@ -268,7 +268,7 @@
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              更新于 2024-10-31 15:13:37
+              更新于 2024-10-31 15:18:55
             </span>
             
                   <span class="post-categories">
@@ -296,8 +296,8 @@
           </div>
           <div class="post-foot-prev">
             
-              <a href="/2024/10/29/cvm_create_m_s/" target="_self">
-                <span>使用CVM搭建PostgreSQL主从架构</span>
+              <a href="/2024/10/29/cte/" target="_self">
+                <span>使用CTE 实现递归搜索</span>
                 <i class="iconfont icon-chevronright"></i>
               </a>
             
