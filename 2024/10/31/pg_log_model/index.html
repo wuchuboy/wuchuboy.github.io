@@ -170,7 +170,7 @@
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-            更新于 2024-10-31 19:20:25
+            更新于 2024-10-31 19:31:01
         </span>
         
               <span class="post-categories">
@@ -199,10 +199,10 @@
       <div class="markdown-body">
         <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>PG 的日志模块是一个相对独立的模块，主要功能就是打印用户的操作日志以及一些异常报错信息。本文仅讲述 <code>logging_collector </code>数开启的情况。<code>logging_collector</code> 是 PostgreSQL 中的一个配置参数，用于控制是否启用日志收集器。</p>
 <h2 id="日志模块原理"><a href="#日志模块原理" class="headerlink" title="日志模块原理"></a>日志模块原理</h2><h3 id="Syslogger-核心模块"><a href="#Syslogger-核心模块" class="headerlink" title="Syslogger 核心模块"></a>Syslogger 核心模块</h3><p>PG 有各种各样的进程，其中 syslogger 进程专门用于打印日志信息。而其余进程打印日志的方法如出一辙：将需要打印的信息发送给 syslogger 进程，由其统一负责打印。</p>
-<img src="https://i-blog.csdnimg.cn/blog_migrate/299b1882384558fc35fdf360b7fd376a.png" class="" width="700" height="1000">
+<img src="/2024/10/31/pg_log_model/image1.png" class="" width="600" height="500">
 
 <p>syslogger 的大体逻辑如下图所示：</p>
-<img src="https://i-blog.csdnimg.cn/blog_migrate/fa764fe244557759f0052100632dc857.png" class="" width="700" height="1000">
+<img src="/2024/10/31/pg_log_model/image2.png" class="" width="700" height="1000">
 
 <ol>
 <li>postmaster 进程在 SysLogger_Start 函数完成部分初始化；</li>
@@ -210,7 +210,7 @@
 <li>进入 syslogger 的主逻辑函数 SysLoggerMain 中，大循环监听其他进程发送来的日志消息，处理打印逻辑。在大循环中同时也根据时间和大小，来判断是否进行日志轮转。</li>
 </ol>
 <h3 id="日志消息通信"><a href="#日志消息通信" class="headerlink" title="日志消息通信"></a>日志消息通信</h3><p>PG 的其余进程如果有需要打印的日志，通常会调用 elog 或者 ereport 来打印。而这两个函数会将日志消息分成若干个 chunk 发送给 syslogger 进程，每个 chunk 的结构可参考下图（源码中的 PipeProtoChunk 结构）</p>
-<img src="https://i-blog.csdnimg.cn/blog_migrate/e9ded727dac28e66c35e2b29fa446885.png" class="" width="1000" height="300">
+<img src="/2024/10/31/pg_log_model/image3.png" class="" width="600" height="200">
 
 <ul>
 <li>开头两个 \0 ，表示是日志开头</li>
@@ -273,7 +273,7 @@
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              更新于 2024-10-31 19:20:25
+              更新于 2024-10-31 19:31:01
             </span>
             
                   <span class="post-categories">
