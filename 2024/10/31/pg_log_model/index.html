@@ -15,7 +15,7 @@
   
   <title>
     
-      使用CTE 实现递归搜索 
+      PG 的日志模块，追加写？覆盖写？ 
       
       
       |
@@ -166,11 +166,11 @@
   <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
   <div class="container post-details" id="post-details">
     <div class="post-content">
-      <div class="post-title">使用CTE 实现递归搜索</div>
+      <div class="post-title">PG 的日志模块，追加写？覆盖写？</div>
       <div class="post-attach">
         <span class="post-pubtime">
           <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-            更新于 2024-10-31 15:14:10
+            更新于 2024-10-31 19:20:25
         </span>
         
               <span class="post-categories">
@@ -188,14 +188,8 @@
                 <i class="iconfont icon-tags mr-10" title="标签"></i>
                 
                 <span class="span--tag mr-8">
-                  <a href="/tags/CTE/" title="CTE">
-                    #CTE
-                  </a>
-                </span>
-                
-                <span class="span--tag mr-8">
-                  <a href="/tags/SQL/" title="SQL">
-                    #SQL
+                  <a href="/tags/%E6%97%A5%E5%BF%97/" title="日志">
+                    #日志
                   </a>
                 </span>
                 
@@ -203,41 +197,83 @@
           
       </div>
       <div class="markdown-body">
-        <p><strong>1、假设我们有一个表示中国城市层次结构的表 <code>cities</code>，其结构如下：</strong></p>
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>PG 的日志模块是一个相对独立的模块，主要功能就是打印用户的操作日志以及一些异常报错信息。本文仅讲述 <code>logging_collector </code>数开启的情况。<code>logging_collector</code> 是 PostgreSQL 中的一个配置参数，用于控制是否启用日志收集器。</p>
+<h2 id="日志模块原理"><a href="#日志模块原理" class="headerlink" title="日志模块原理"></a>日志模块原理</h2><h3 id="Syslogger-核心模块"><a href="#Syslogger-核心模块" class="headerlink" title="Syslogger 核心模块"></a>Syslogger 核心模块</h3><p>PG 有各种各样的进程，其中 syslogger 进程专门用于打印日志信息。而其余进程打印日志的方法如出一辙：将需要打印的信息发送给 syslogger 进程，由其统一负责打印。</p>
+<img src="https://i-blog.csdnimg.cn/blog_migrate/299b1882384558fc35fdf360b7fd376a.png" class="" width="700" height="1000">
+
+<p>syslogger 的大体逻辑如下图所示：</p>
+<img src="https://i-blog.csdnimg.cn/blog_migrate/fa764fe244557759f0052100632dc857.png" class="" width="700" height="1000">
+
+<ol>
+<li>postmaster 进程在 SysLogger_Start 函数完成部分初始化；</li>
+<li>由 postmaster 进程 fork 出 syslogger 进程；</li>
+<li>进入 syslogger 的主逻辑函数 SysLoggerMain 中，大循环监听其他进程发送来的日志消息，处理打印逻辑。在大循环中同时也根据时间和大小，来判断是否进行日志轮转。</li>
+</ol>
+<h3 id="日志消息通信"><a href="#日志消息通信" class="headerlink" title="日志消息通信"></a>日志消息通信</h3><p>PG 的其余进程如果有需要打印的日志，通常会调用 elog 或者 ereport 来打印。而这两个函数会将日志消息分成若干个 chunk 发送给 syslogger 进程，每个 chunk 的结构可参考下图（源码中的 PipeProtoChunk 结构）</p>
+<img src="https://i-blog.csdnimg.cn/blog_migrate/e9ded727dac28e66c35e2b29fa446885.png" class="" width="1000" height="300">
+
 <ul>
-<li><code>id</code>：城市的唯一标识符</li>
-<li><code>name</code>：城市的名称</li>
-<li><code>parent_id</code>：父城市的唯一标识符（省级城市的 <code>parent_id</code> 为 <code>NULL</code>）</li>
+<li>开头两个 \0 ，表示是日志开头</li>
+<li>length：用于记录当前 chunk 的长度</li>
+<li>pid：发送该 chunk 的进程号</li>
+<li>is_last：是否是本条日志消息的最后一个 chunk；</li>
+<li>data：具体的日志消息。</li>
+<li>chunk 大小：PIPE_CHUNK_SIZE ，源码 define 出的一个值，由 OS 的 PIPE_BUF 决定。具体细节可参考这部分定义的代码。</li>
 </ul>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> cities (</span><br><span class="line">  id SERIAL <span class="keyword">PRIMARY</span> KEY,</span><br><span class="line">  name <span class="type">VARCHAR</span>(<span class="number">100</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  parent_id <span class="type">INT</span> <span class="keyword">REFERENCES</span> cities(id)</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>注： PG 15 在 pipe 协议格式中做了一些变化，由 flags 代替 is_last 标记。</p>
+</blockquote>
+<p>syslogger 在接收到日志消息后，将其按照 pid 进行分组，相同的 pid 说明日志消息来源于同一进程，将其组装起来，当收到包含 is_last 标记的最后一个 chunk 后，将整条日志消息打印到日志文件。</p>
+<h3 id="日志轮转"><a href="#日志轮转" class="headerlink" title="日志轮转"></a>日志轮转</h3><p>所谓日志轮转，指的就是不想继续写当前日志文件了，需要新找一个日志文件继续写日志。</p>
+<p>PG 的日志轮转是一个坑非常多的地方，因为它由下面四个参数同时控制：</p>
+<ul>
+<li><p>log_filename ：日志文件格式，我们以其设定为 postgres_%d_%h 为例，某个月 14 号 15 点的日志文件名就是 postgres_14_15.log</p>
+</li>
+<li><p>log_rotation_age：如果距离当前日志文件已经超过设定的时间，那么就新开一个日志文件；</p>
+</li>
+<li><p>log_rotation_size：如果距离当前日志文件还没有超过 log_rotation_age 设定的时间，但是已经超过了 log_rotation_size 设定的大小，那么就新开一个日志文件；</p>
+</li>
+<li><p>log_truncate_on_rotation：是否在按时间轮转后做截断。即如果下一个日志文件的同名文件已经存在了，是否直接清空该文件并从头开始写；</p>
+</li>
+</ul>
+<p>这几个参数的具体使用可参考 PG 官方文档。看完上面的介绍，想必大家已经精通日志参数设置了，那么接下来做几道题检验自己的学习成果。</p>
+<p>假如，我们按照以下值设定日志相关参数</p>
+<figure class="highlight postgresql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">log_filename=<span class="string">&#x27;postgres_%d_%h.log&#x27;</span></span><br><span class="line">log_rotation_age = <span class="number">2</span>h</span><br><span class="line">log_rotation_size = <span class="number">10</span>MB</span><br><span class="line">log_truncate_on_rotation = <span class="keyword">on</span></span><br></pre></td></tr></table></figure>
 
-<p><strong>2、假设我们有以下数据：</strong></p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;中国&#x27;</span>, <span class="keyword">NULL</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;北京&#x27;</span>, <span class="number">1</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;上海&#x27;</span>, <span class="number">1</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;广东省&#x27;</span>, <span class="number">1</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;广州市&#x27;</span>, <span class="number">4</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;深圳市&#x27;</span>, <span class="number">4</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;天河区&#x27;</span>, <span class="number">5</span>);</span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> cities (name, parent_id) <span class="keyword">VALUES</span> (<span class="string">&#x27;南山区&#x27;</span>, <span class="number">6</span>);</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> id <span class="operator">|</span>  name  <span class="operator">|</span> parent_id </span><br><span class="line"><span class="comment">----+--------+-----------</span></span><br><span class="line">  <span class="number">1</span> <span class="operator">|</span> 中国    <span class="operator">|</span>          </span><br><span class="line">  <span class="number">2</span> <span class="operator">|</span> 北京    <span class="operator">|</span>         <span class="number">1</span></span><br><span class="line">  <span class="number">3</span> <span class="operator">|</span> 上海    <span class="operator">|</span>         <span class="number">1</span></span><br><span class="line">  <span class="number">4</span> <span class="operator">|</span> 广东省  <span class="operator">|</span>         <span class="number">1</span></span><br><span class="line">  <span class="number">5</span> <span class="operator">|</span> 广州市  <span class="operator">|</span>         <span class="number">4</span></span><br><span class="line">  <span class="number">6</span> <span class="operator">|</span> 深圳市  <span class="operator">|</span>         <span class="number">4</span></span><br><span class="line">  <span class="number">7</span> <span class="operator">|</span> 天河区  <span class="operator">|</span>         <span class="number">5</span></span><br><span class="line">  <span class="number">8</span> <span class="operator">|</span> 南山区  <span class="operator">|</span>         <span class="number">6</span></span><br><span class="line">(<span class="number">8</span> <span class="keyword">rows</span>)</span><br></pre></td></tr></table></figure>
-
-<p><strong>3、假设我们希望查询 <code>广东省</code> 及其所有子城市的层次结构。并得到以下结果：</strong></p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> id <span class="operator">|</span>  name  <span class="operator">|</span> parent_id <span class="operator">|</span>            full_path            </span><br><span class="line"><span class="comment">----+--------+-----------+---------------------------------</span></span><br><span class="line">  <span class="number">1</span> <span class="operator">|</span> 中国    <span class="operator">|</span>           <span class="operator">|</span> 中国</span><br><span class="line">  <span class="number">2</span> <span class="operator">|</span> 北京    <span class="operator">|</span>         <span class="number">1</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 北京</span><br><span class="line">  <span class="number">3</span> <span class="operator">|</span> 上海    <span class="operator">|</span>         <span class="number">1</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 上海</span><br><span class="line">  <span class="number">4</span> <span class="operator">|</span> 广东省  <span class="operator">|</span>         <span class="number">1</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省</span><br><span class="line">  <span class="number">5</span> <span class="operator">|</span> 广州市  <span class="operator">|</span>         <span class="number">4</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 广州市</span><br><span class="line">  <span class="number">6</span> <span class="operator">|</span> 深圳市  <span class="operator">|</span>         <span class="number">4</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 深圳市</span><br><span class="line">  <span class="number">7</span> <span class="operator">|</span> 天河区  <span class="operator">|</span>         <span class="number">5</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 广州市 <span class="operator">&gt;</span> 天河区</span><br><span class="line">  <span class="number">8</span> <span class="operator">|</span> 南山区  <span class="operator">|</span>         <span class="number">6</span> <span class="operator">|</span> 中国 <span class="operator">&gt;</span> 广东省 <span class="operator">&gt;</span> 深圳市 <span class="operator">&gt;</span> 南山区</span><br><span class="line">(<span class="number">8</span> <span class="keyword">rows</span>)</span><br></pre></td></tr></table></figure>
-
-<p><strong>4、我们可以使用递归 CTE 来实现这一点。</strong></p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">WITH</span> <span class="keyword">RECURSIVE</span> city_hierarchy <span class="keyword">AS</span> (</span><br><span class="line">  <span class="comment">-- 基础查询：选择根节点，并初始化路径</span></span><br><span class="line">  <span class="keyword">SELECT</span> id, name, parent_id, name::<span class="type">VARCHAR</span> <span class="keyword">AS</span> full_path</span><br><span class="line">  <span class="keyword">FROM</span> cities</span><br><span class="line">  <span class="keyword">WHERE</span> name <span class="operator">=</span> <span class="string">&#x27;中国&#x27;</span></span><br><span class="line">  </span><br><span class="line">  <span class="keyword">UNION</span> <span class="keyword">ALL</span></span><br><span class="line">  </span><br><span class="line">  <span class="comment">-- 递归查询：选择子节点，并构建路径</span></span><br><span class="line">  <span class="keyword">SELECT</span> c.id, c.name, c.parent_id, (ch.full_path <span class="operator">||</span> <span class="string">&#x27; &gt; &#x27;</span> <span class="operator">||</span> c.name)::<span class="type">VARCHAR</span> <span class="keyword">AS</span> full_path</span><br><span class="line">  <span class="keyword">FROM</span> cities c</span><br><span class="line">  <span class="keyword">INNER</span> <span class="keyword">JOIN</span> city_hierarchy ch <span class="keyword">ON</span> c.parent_id <span class="operator">=</span> ch.id</span><br><span class="line">)</span><br><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> city_hierarchy;</span><br></pre></td></tr></table></figure>
-
+<h4 id="问题一"><a href="#问题一" class="headerlink" title="问题一"></a>问题一</h4><p>Q：此时时间刚到 14 号下午 17 点 ，日志文件为 postgres_14_16.log，且大小为 5MB，请问接下来要写的日志文件是什么？<br>A：<strong>postgres_14_16.log</strong> 。因为此时距离 15 点仅过了 1h，没有超过 log_rotation_age；大小并没有超过 log_rotation_size ，所以并不发生轮转。</p>
+<h4 id="问题二"><a href="#问题二" class="headerlink" title="问题二"></a>问题二</h4><p>Q：此时时间为 14 号下午 16 点 30 分 ，日志文件为 postgres_14_16.log，且大小刚刚超过 10MB 到达 10.9MB，请问接下来要写的日志文件是什么？<br>A：<strong>postgres_14_16.log</strong> 。因为 log_filename 参数的最小精度值就到小时，哪怕当前日志文件大小变成 1TB 也只会继续追加写这个文件。</p>
+<h4 id="问题三"><a href="#问题三" class="headerlink" title="问题三"></a>问题三</h4><p>Q：此时时间刚到 14 号下午 17 点 ，日志文件为 postgres_14_16.log，且大小刚刚超过 10MB 到达 10.9MB，请问接下来要写的日志文件是什么？<br>A：<strong>postgres_14_17.log</strong> 。因为满足 log_rotation_size 的轮转条件了。</p>
+<h4 id="问题四"><a href="#问题四" class="headerlink" title="问题四"></a>问题四</h4><p>Q：此时时间刚到 14 号下午 17 点 ，日志文件为 postgres_14_16.log，且大小刚刚超过 10MB 到达 10.9MB，但是名为postgres_14_17.log 的文件已经存在了（上个月日志创建的），那么是追加写还是覆盖写该文件？<br>A：<strong>追加写</strong>，因为这是按大小轮转。</p>
+<h4 id="问题五"><a href="#问题五" class="headerlink" title="问题五"></a>问题五</h4><p>Q：此时时间刚到 14 号下午 18 点 ，日志文件为 postgres_14_16.log，且大小只有 0.1MB。但是名为 postgres_14_18.log 的文件已经存在了，那么是追加写还是覆盖写该文件？<br>A：<strong>覆盖写</strong>，log_rotation_age 强制触发按时间轮转逻辑。</p>
+<blockquote>
+<p>上面问题都能搞懂，基本也没什么坑了。</p>
+</blockquote>
+<h2 id="存在的问题"><a href="#存在的问题" class="headerlink" title="存在的问题"></a>存在的问题</h2><h3 id="刷盘性能"><a href="#刷盘性能" class="headerlink" title="刷盘性能"></a>刷盘性能</h3><p>当前情况下，在 log_statement 参数设置成 all 时，性能下降会非常厉害。因为 PG 的日志在刷盘时的默认策略为：每写一行就刷盘。Linux 提供的刷盘模式可分为以下三种：</p>
+<ul>
+<li><p>_IOFBF：全缓冲模式，缓冲区写满后才刷盘</p>
+</li>
+<li><p>_IOLBF：行缓冲模式，一行写满就刷盘</p>
+</li>
+<li><p>_IONBF：不缓冲，直接刷</p>
+</li>
+</ul>
+<p>当前 PG 采用第二种行缓冲模式，优点是日志出来的即时性更高，缺点就是对性能有不小的影响。</p>
+<h3 id="日志轮转-1"><a href="#日志轮转-1" class="headerlink" title="日志轮转"></a>日志轮转</h3><p>日志轮转的逻辑设计虽然勉强算是合理的（不会丢日志），但是理解成本很高，且有可能出现某个日志文件存在了非常非常久（上一节问题 4 的变种），一直没被删掉，需要依赖人工手动删除。</p>
+<hr>
+<blockquote>
+<p>本文来源于：<a target="_blank" rel="noopener" href="https://blog.csdn.net/zxwsbg/article/details/131437441">https://blog.csdn.net/zxwsbg/article/details/131437441</a>   内核大神博文哥！！！</p>
+</blockquote>
 
       </div>
       
         <div class="prev-or-next">
           <div class="post-foot-next">
             
-              <a href="/2024/10/29/cgroup_linux_memory_control_group/" target="_self">
-                <i class="iconfont icon-chevronleft"></i>
-                <span>Cgroup - Linux内存资源管理</span>
-              </a>
-            
           </div>
           <div class="post-attach">
             <span class="post-pubtime">
               <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
-              更新于 2024-10-31 15:14:10
+              更新于 2024-10-31 19:20:25
             </span>
             
                   <span class="post-categories">
@@ -255,14 +291,8 @@
                     <i class="iconfont icon-tags mr-10" title="标签"></i>
                     
                     <span class="span--tag mr-8">
-                      <a href="/tags/CTE/" title="CTE">
-                        #CTE
-                      </a>
-                    </span>
-                    
-                    <span class="span--tag mr-8">
-                      <a href="/tags/SQL/" title="SQL">
-                        #SQL
+                      <a href="/tags/%E6%97%A5%E5%BF%97/" title="日志">
+                        #日志
                       </a>
                     </span>
                     
@@ -271,8 +301,8 @@
           </div>
           <div class="post-foot-prev">
             
-              <a href="/2024/10/29/checkpoint/" target="_self">
-                <span>checkpoint是什么东西？一个点吗？一个位置？还是一个操作？</span>
+              <a href="/2024/10/30/cgroup_linux_network_control_group/" target="_self">
+                <span>Cgroup - Linux的网络资源隔离</span>
                 <i class="iconfont icon-chevronright"></i>
               </a>
             
@@ -281,6 +311,23 @@
       
     </div>
     
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%97%A5%E5%BF%97%E6%A8%A1%E5%9D%97%E5%8E%9F%E7%90%86"><span class="toc-text">日志模块原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Syslogger-%E6%A0%B8%E5%BF%83%E6%A8%A1%E5%9D%97"><span class="toc-text">Syslogger 核心模块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%97%A5%E5%BF%97%E6%B6%88%E6%81%AF%E9%80%9A%E4%BF%A1"><span class="toc-text">日志消息通信</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%97%A5%E5%BF%97%E8%BD%AE%E8%BD%AC"><span class="toc-text">日志轮转</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%80"><span class="toc-text">问题一</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%BA%8C"><span class="toc-text">问题二</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%89"><span class="toc-text">问题三</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%9B%9B"><span class="toc-text">问题四</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%BA%94"><span class="toc-text">问题五</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="toc-text">存在的问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%B7%E7%9B%98%E6%80%A7%E8%83%BD"><span class="toc-text">刷盘性能</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%97%A5%E5%BF%97%E8%BD%AE%E8%BD%AC-1"><span class="toc-text">日志轮转</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
 
     
       <div class="comments-container">
@@ -629,12 +676,12 @@
       </a>
       <div class="share-content hidden">
         
-          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + %E4%BD%BF%E7%94%A8CTE%20%E5%AE%9E%E7%8E%B0%E9%80%92%E5%BD%92%E6%90%9C%E7%B4%A2 + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F10%2F29%2Fcte%2F + '" target="_blank" title="Twitter">
+          <a class="share-item" href="https://twitter.com/intent/tweet?text=' + PG%20%E7%9A%84%E6%97%A5%E5%BF%97%E6%A8%A1%E5%9D%97%EF%BC%8C%E8%BF%BD%E5%8A%A0%E5%86%99%EF%BC%9F%E8%A6%86%E7%9B%96%E5%86%99%EF%BC%9F + '&url=' + https%3A%2F%2Fwuchu.site%2F2024%2F10%2F31%2Fpg_log_model%2F + '" target="_blank" title="Twitter">
             <i class="iconfont icon-twitter"></i>
           </a>
         
         
-          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/10/29/cte/" target="_blank" title="Facebook">
+          <a class="share-item" href="https://www.facebook.com/sharer.php?u=https://wuchu.site/2024/10/31/pg_log_model/" target="_blank" title="Facebook">
             <i class="iconfont icon-facebooksquare"></i>
           </a>
         
