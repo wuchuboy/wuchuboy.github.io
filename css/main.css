@@ -1050,8 +1050,8 @@ figure .pin-copy {
   --bg-body: #2E3440;
   --color-text-base: #C1C2C5;
   --color-text-a: #C1C2C5;
-  --color-text-a-hover: #FFFFFF;
-  --color-text-a-active: #FFFFFF;
+  --color-text-a-hover: #1890ff;
+  --color-text-a-active: #1890ff;
   --color-text-sub: #8e8e8e;
   --color-text-md-title: #eceff4;
   --color-text-md-content: #eceff4;
@@ -1330,6 +1330,11 @@ a:hover {
   padding-bottom: 2px;
 }
 
+.navbar ul li.active a {
+  color: var(--color-text-a-active);
+}
+
+/*
 .navbar ul li a:hover::after {
   content: "";
   position: absolute;
@@ -1342,9 +1347,7 @@ a:hover {
   border-radius: 2px;
 }
 
-.navbar ul li.active a {
-  color: var(--color-text-a-active);
-}
+
 
 .navbar ul li.active a::after {
   content: "";
@@ -1357,7 +1360,7 @@ a:hover {
   width: 89%;
   border-radius: 2px;
 }
-
+*/
 @media (max-width: 888px) {
   .navbar ul li {
     margin: 0 10px;
@@ -1571,7 +1574,7 @@ a:hover {
   color: var(--color-text-a-active);
   opacity: 1;
 }
-
+/*
 .toc-link:hover::after {
   content: "";
   position: absolute;
@@ -1595,7 +1598,7 @@ a:hover {
   border-radius: 2px;
   opacity: 0.55;
 }
-
+*/
 .search-overlay {
   position: fixed;
   top: 0;
