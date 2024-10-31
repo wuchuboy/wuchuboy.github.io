@@ -3,12 +3,12 @@
   --bg-body: #FFFFFF;
   --color-text-base: #666;
   --color-text-a: #666;
-  --color-text-a-hover: #000000;
-  --color-text-a-active: #000000;
+  --color-text-a-hover: #1890ff;
+  --color-text-a-active: #1890ff;
   --color-text-sub: #8e8e8e;
   --color-text-md-title: #24292e;
   --color-text-md-content: #24292e;
-  --color-text-md-code: #e96900;
+  --color-text-md-code: #c05c09;
   --bg-text-md-code: #f8f8f8;
   --bg-block-md-quote: #EEEEEE;
   --color-block-md-quote: #555555;
