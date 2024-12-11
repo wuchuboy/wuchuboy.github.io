@@ -13,7 +13,7 @@
   padding: 0.8rem;
   color: var(--text-color-3);
   background: var(--background-color-2);
-  border-left: 0.4rem solid var(--primary-color);
+  border-left: 0.4rem solid var(--text-color-4);
   border-top-left-radius: 0.2rem;
   border-bottom-left-radius: 0.2rem;
 }
